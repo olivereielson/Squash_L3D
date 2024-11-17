@@ -22,7 +22,7 @@ rebuild_csv=False
 
 print("******Preparing Envoirment******")
 get_gpu_status()
-device = torch.device('cpu')
+device = torch.device('mps')
 print(torch.ones(1, device=device))
 
 
@@ -58,7 +58,7 @@ valid_data = VOC("testA.csv", transform=transform)
 test_data = VOC("validA.csv", transform=transform)
 
 # define training and validation data loaders
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=8, shuffle=True, collate_fn=collate_fn)
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=2, shuffle=True, collate_fn=collate_fn)
 valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=2, shuffle=True, collate_fn=collate_fn)
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=2, shuffle=True, collate_fn=collate_fn)
 
@@ -69,10 +69,10 @@ print("Test_loader Size = " + str(len(test_loader)))
 print("******Preparing Model******")
 
 epochs = 10
-num_classes = 1
-learning_rate = 0.00001
-step_size = 0.001
-gamma = 0.001
+num_classes = 2
+learning_rate = 0.01
+step_size = 1
+gamma = 0.1
 backbone_weights = ResNet50_Weights
 
 print("Backbone Weights = " + str(backbone_weights))

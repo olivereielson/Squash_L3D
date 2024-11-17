@@ -89,9 +89,9 @@ def Eval_loss(model, dataloader, device):
 
 def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
     # set model to training mode
+
     model.train()
 
-    itr = 0
     total_loss = 0.0
     for images, targets in data_loader:
         # load data onto the GPU
@@ -101,8 +101,8 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
         # train on data
         loss_dict = model(images, targets)
         losses = sum(loss for loss in loss_dict.values())
-
         total_loss += losses.item()
+
 
         # check if I was messed something up
         if not math.isfinite(losses.item()):

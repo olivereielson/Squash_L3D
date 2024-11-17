@@ -57,8 +57,6 @@ class RecenterOnBall:
 
 
 
-
-
 label_map = {
     "Squash": 1,
     "tennis-ball": 0
@@ -117,9 +115,6 @@ class VOC(Dataset):
 
         if self.transform is not None:
             image, boxes, labels = self.transform(image, boxes, labels)
-
-        # if image != image2:
-        #     assert boxes2 != boxes
 
         target = {}
         target["boxes"] = boxes

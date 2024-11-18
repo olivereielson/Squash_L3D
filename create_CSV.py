@@ -1,5 +1,6 @@
 import os
 import csv
+import warnings
 import xml.etree.ElementTree as ET
 import argparse
 from tqdm import tqdm
@@ -23,7 +24,43 @@ def parse_voc_annotation(xml_file):
 
     return boxes, labels
 
-def generate_csv(folder_path, output_csv):
+
+def generate_csv_from_path_list(path_list, output_csv):
+
+    assert len(path_list) > 0, "No paths provided"
+
+
+    with open(output_csv, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["image_path", "xmin", "ymin", "xmax", "ymax", "class"])
+
+        # Process XML files and corresponding images
+        for jpg in tqdm(path_list, desc=f"Processing Annotations for {output_csv}"):
+
+            if jpg.endswith(".xml"):
+                warnings.warn(f"There is an xml file in your path list: {jpg}.... that should not happen")
+            assert jpg.endswith(".jpg"), f"File {jpg} is not a jpg file"
+
+            xml_path = jpg.replace(".jpg", ".xml")
+            image_path = jpg
+
+            assert os.path.exists(xml_path), f"XML file {xml_path} does not exist"
+            assert os.path.exists(image_path), f"Image file {image_path} does not exist"
+
+            # Parse XML to get boxes and labels
+            boxes, labels = parse_voc_annotation(xml_path)
+
+            for box, label in zip(boxes, labels):
+                writer.writerow([image_path, *box, label])
+
+    print(f"CSV file created: {output_csv}")
+
+
+
+
+
+
+def generate_csv(folder_path, output_csv,included_labels=[]):
     """Generates a CSV file listing image paths, bounding boxes, and labels."""
     assert os.path.exists(folder_path), f"Folder {folder_path} does not exist"
 
@@ -47,8 +84,10 @@ def generate_csv(folder_path, output_csv):
             # Parse XML to get boxes and labels
             boxes, labels = parse_voc_annotation(xml_path)
 
+
             for box, label in zip(boxes, labels):
-                writer.writerow([image_path, *box, label])
+                if label in included_labels:
+                    writer.writerow([image_path, *box, label])
 
     print(f"CSV file created: {output_csv}")
 

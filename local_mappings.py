@@ -103,12 +103,6 @@ def gen_local_mappings(folder_path):
         warnings.warn(f"Waring: {len(unique_images)} unique images found in {folder_path}....Extra Validation required")
 
 
-
-
-
-
-
-
 if __name__ == "__main__":
     ssd_path = "/Volumes/Capstone"
     assert os.path.exists(ssd_path), "SSD path does not exist...idiot"

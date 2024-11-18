@@ -13,10 +13,15 @@ def validate_csv_files(csv_paths):
 
     Raises:
         ValueError: If any issues are found in the CSV files.
+
     """
     all_image_paths = set()  # To ensure there is no overlap in image paths across splits
 
     for csv_path in csv_paths:
+
+
+
+
         if not os.path.exists(csv_path):
             raise ValueError(f"CSV file {csv_path} does not exist.")
 
@@ -36,7 +41,7 @@ def validate_csv_files(csv_paths):
             raise ValueError(f"CSV file {csv_path} is missing required columns: {required_columns - set(df.columns)}")
 
         # Check for valid bounding box coordinates
-        if not (df["xmin"] < df["xmax"]).all() or not (df["ymin"] < df["ymax"]).all():
+        if not (df["xmin"] <= df["xmax"]).all() or not (df["ymin"] <= df["ymax"]).all():
             raise ValueError(f"CSV file {csv_path} has invalid bounding box coordinates.")
 
         # Ensure all image paths are unique across splits

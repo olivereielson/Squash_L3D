@@ -11,7 +11,7 @@ def copy_and_resize(source, destination, size):
     image.save(destination)
 
 
-dataset_path = '/Users/olivereielson/pycharm/Squash_ML/dataset'
+dataset_path = '/Cycle_Gan/dataset'
 train_number = 1000
 test_number = 10
 image_size = 256

@@ -19,7 +19,7 @@ class RecenterOnBall:
         """
         self.crop_size = crop_size
 
-    def __call__(self, image, box):
+    def __call__(self, image, box_tensor, label):
         """
         Args:
             image (PIL Image): The input image.
@@ -28,6 +28,13 @@ class RecenterOnBall:
         Returns:
             PIL Image: Cropped and centered image around the ball.
         """
+        # Convert box coordinates to integers if they're torch.Tensors
+        if isinstance(box_tensor, torch.Tensor):
+            box = box_tensor.int().tolist()
+        else:
+            box = box_tensor
+
+
         # Extract the bounding box coordinates
         xmin, ymin, xmax, ymax = box
 
@@ -53,7 +60,7 @@ class RecenterOnBall:
         # Crop the image
         image = F.crop(image, top, left, bottom - top, right - left)
 
-        return image
+        return image, box_tensor, label
 
 
 
@@ -114,7 +121,7 @@ class VOC(Dataset):
         image_id = torch.tensor([idx])
 
         if self.transform is not None:
-            image, boxes, labels = self.transform(image, boxes, labels)
+            image, boxes, labels = self.transform(image, boxes[0], labels[0])
 
         target = {}
         target["boxes"] = boxes

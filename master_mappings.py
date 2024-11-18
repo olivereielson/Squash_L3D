@@ -3,10 +3,28 @@ import os
 import json
 
 import cv2
+import numpy as np
 from tqdm import tqdm
 
 from local_mappings import validate_local_mappings
 from verify_images import are_images_similar
+
+
+
+def sanity_check(mappings,size=(360,360)):
+    for key in mappings:
+        key_image = cv2.imread(key)
+        assert key_image is not None, f"Image {key} is empty"
+        key_image = cv2.resize(key_image, size)
+
+        for image in mappings[key]:
+            assert os.path.exists(image), f"Image {image} does not exist"
+            frame = cv2.imread(image)
+            assert frame is not None, f"Image {image} is empty"
+            frame = cv2.resize(frame, size)
+            side_by_side = np.hstack((key_image, frame))
+            cv2.imshow(key, side_by_side)
+            cv2.waitKey(1)
 
 
 
@@ -47,7 +65,7 @@ for folder in tqdm(all_folders, desc="Merging Local Mappings"):
                 continue
 
             for global_key in global_unique_images:
-                if are_images_similar(key, global_key, threshold=0.80):
+                if are_images_similar(key, global_key, threshold=0.90):
 
                     found_similar = True
                     global_unique_images[global_key].extend(local_mappings[key])
@@ -61,3 +79,4 @@ for folder in tqdm(all_folders, desc="Merging Local Mappings"):
 json.dump(global_unique_images, open(f"{ssd_path}/global_mappings.json", "w"))
 assert os.path.exists(f"{ssd_path}/global_mappings.json"), "Failed to generate global mappings"
 summary(global_unique_images)
+sanity_check(global_unique_images)

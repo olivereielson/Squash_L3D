@@ -66,7 +66,7 @@ assert os.path.exists(f"{squash_path}/test.csv"), f"{squash_path}test.csv does n
 # validate_csv_files([f"{tennis_path}/train.csv", f"{tennis_path}/test.csv", f"{tennis_path}/valid.csv",])
 
 
-transform = RecenterOnBall(crop_size=(400, 400))
+transform = RecenterOnBall(crop_size=(256, 256))
 
 
 # Create the dataloaders
@@ -83,6 +83,10 @@ for i in tqdm(range(train_number), desc="Saving Images for train"):
     image, target = train_tennis.__getitem__(i)
     numpy_image = np.array(image)
     numpy_image = cv2.cvtColor(numpy_image, cv2.COLOR_RGB2BGR)
+
+    cv2.imshow("Image", numpy_image)
+    cv2.waitKey(1)
+
     cv2.imwrite(f"{output_dir}/trainA/{i}.jpg", numpy_image)
 
     image, target = train_squash.__getitem__(i)

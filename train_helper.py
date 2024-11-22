@@ -31,14 +31,16 @@ def split_data(data, test_size=0.10, valid_size=0.2, random_state=40):
 
 
 def get_gpu_status():
-    if not torch.backends.mps.is_available():
-        if not torch.backends.mps.is_built():
-            print("MPS not available because the current PyTorch install was not "
+    if torch.backends.mps.is_available():
+        if  torch.backends.mps.is_built():
+            print("MPS is available because the current PyTorch install was not "
                   "built with MPS enabled.")
         else:
-            print("MPS not available because the current MacOS version is not 12.3+ "
-                  "and/or you do not have an MPS-enabled device on this machine.")
-
+            print("MPS is ready to be used")
+    elif torch.cuda.is_available:
+        print("Using CUDA GPU.... yaaa")
+    else:
+        print("Only the CPU is available")
 
 def collate_fn(batch):
     """

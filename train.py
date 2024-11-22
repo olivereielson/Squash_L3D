@@ -22,7 +22,7 @@ rebuild_csv=False
 
 print("******Preparing Envoirment******")
 get_gpu_status()
-device = torch.device('mps')
+device = torch.device('cpu')
 print(torch.ones(1, device=device))
 
 

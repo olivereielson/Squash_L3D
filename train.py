@@ -1,12 +1,14 @@
 import pandas as pd
 import torch
 import torchvision
+import tqdm
 from sklearn.model_selection import train_test_split
 from torch.nn import CrossEntropyLoss, MSELoss
 from torch.utils.data import Dataset
 import torchvision.transforms.v2 as T
 from torchmetrics.detection import MeanAveragePrecision
-
+import time
+import os
 from torchvision.models import ResNet50_Weights
 from torchvision.models.optical_flow.raft import ResidualBlock
 from torchvision.transforms import v2
@@ -25,17 +27,34 @@ get_gpu_status()
 device = torch.device('cpu')
 print(torch.ones(1, device=device))
 
-
 seed = 0
 torch.manual_seed(seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
+
+
+check_point_dir = "/cluster/home/oeiels01/past_runs/run0"
 
 print("Device = " + str(device))
 print("Random Seed = " + str(seed))
 
 # split the data
 print("******Preparing Data******")
+
+
+if os.path.exists(check_point_dir) and os.path.isdir(check_point_dir):
+    for i in range(10):
+        print(f"NOTICE: you are continue training from checkpoints stored at {check_point_dir}")
+        print("you have 2 seconds to cancel... tick...tock")
+        time.sleep(2)
+        checkpoint = torch.load("checkpoints/checkpoint_epoch_5.pth", map_location=device)
+
+else: 
+    os.mkdir(check_point_dir)
+    assert os.path.exists(check_point_dir), f"Failed to make folder: {check_point_dir}"
+    print(f"Checkpoints will be saved to {check_point_dir}")
+
+
 transform = T.Compose([
     v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
     # T.RandomHorizontalFlip(0.5),
@@ -83,7 +102,6 @@ print("Number of Classes = " + str(num_classes))
 
 model = torchvision.models.detection.retinanet_resnet50_fpn_v2(num_classes=num_classes,)
 model.to(device)
-# define the parameters
 
 
 metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox")
@@ -92,10 +110,26 @@ metric.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, )
 
+
+if checkpoint is not None:
+    try:
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1
+        train_history = checkpoint['train_history']
+        print(f"Restored from last checkpoint...Training from epoch {start_epoch}")
+    except:
+        print(f"Failed to load from checkpoint...go fix it")
+
+
 train_history = {"total_train_loss": [], "map": [], "eval_loss": []}
 
 print(f"******Starting Training: {epochs} epochs******")
-for i in range(epochs):
+for i in tqdm(range(start_epoch,epochs), desc="Training Progress", unit="epoch"):
+
+    start_time = time.time()
+
     # # train the model
 
     train_loss = train_one_epoch(model, optimizer, train_loader, device, lr_scheduler=lr_scheduler)
@@ -109,6 +143,12 @@ for i in range(epochs):
     mAp = eval_mAP(model, valid_loader, device, metric)
     train_history["map"].append(mAp)
     print(f"Epoch #{i} mAp: {mAp}")
+
+
+
+
+    epoch_time = time.time() - start_time
+    tqdm.write(f"Epoch #{i} took {epoch_time:.2f} seconds")
 
 print("******Saving Model******")
 torch.save(model, "fishing_model.sav")

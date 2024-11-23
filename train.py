@@ -33,7 +33,10 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 
 
-check_point_dir = "/cluster/home/oeiels01/past_runs/run0"
+check_point_dir = "/cluster/tufts/cs152l3dclass/oeiels01/run1"
+
+
+
 
 print("Device = " + str(device))
 print("Random Seed = " + str(seed))
@@ -43,11 +46,10 @@ print("******Preparing Data******")
 
 
 if os.path.exists(check_point_dir) and os.path.isdir(check_point_dir):
-    for i in range(10):
-        print(f"NOTICE: you are continue training from checkpoints stored at {check_point_dir}")
-        print("you have 2 seconds to cancel... tick...tock")
-        time.sleep(2)
-        checkpoint = torch.load("checkpoints/checkpoint_epoch_5.pth", map_location=device)
+    print(f"NOTICE: you are continue training from checkpoints stored at {check_point_dir}")
+    print("you have 2 seconds to cancel... tick...tock")
+    time.sleep(2)
+        # checkpoint = torch.load("checkpoints/checkpoint_epoch_5.pth", map_location=device)
 
 else: 
     os.mkdir(check_point_dir)
@@ -62,19 +64,17 @@ transform = T.Compose([
     # T.RandomRotation(45),
 ])
 
-if rebuild_csv:
-    print("Rebuilding CSV Files")
-    generate_csv("/Users/olivereielson/Desktop/tennis-tracker/train/", "trainA.csv")
-    generate_csv("/Users/olivereielson/Desktop/tennis-tracker/test/", "testA.csv")
-    generate_csv("/Users/olivereielson/Desktop/tennis-tracker/valid/", "validA.csv")
 
 
-validate_csv_files(["trainA.csv", "testA.csv", "validA.csv"])
 
 # define the dataset
-train_data = VOC("trainA.csv", transform=transform)
-valid_data = VOC("testA.csv", transform=transform)
-test_data = VOC("validA.csv", transform=transform)
+train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train.csv"
+test_csv = "/cluster/tufts/cs152l3dclass/oeiels01/test.csv"
+valid_csv = "/cluster/tufts/cs152l3dclass/oeiels01/valid.csv"
+
+train_data = VOC(train_csv, transform=transform)
+valid_data = VOC(test_csv, transform=transform)
+test_data = VOC(valid_csv, transform=transform)
 
 # define training and validation data loaders
 train_loader = torch.utils.data.DataLoader(train_data, batch_size=2, shuffle=True, collate_fn=collate_fn)
@@ -111,22 +111,22 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, )
 
 
-if checkpoint is not None:
-    try:
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
-        start_epoch = checkpoint['epoch'] + 1
-        train_history = checkpoint['train_history']
-        print(f"Restored from last checkpoint...Training from epoch {start_epoch}")
-    except:
-        print(f"Failed to load from checkpoint...go fix it")
+# if checkpoint is not None:
+#     try:
+#         model.load_state_dict(checkpoint['model_state_dict'])
+#         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+#         lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
+#         start_epoch = checkpoint['epoch'] + 1
+#         train_history = checkpoint['train_history']
+#         print(f"Restored from last checkpoint...Training from epoch {start_epoch}")
+#     except:
+#         print(f"Failed to load from checkpoint...go fix it")
 
 
 train_history = {"total_train_loss": [], "map": [], "eval_loss": []}
 
 print(f"******Starting Training: {epochs} epochs******")
-for i in tqdm(range(start_epoch,epochs), desc="Training Progress", unit="epoch"):
+for i in tqdm.tqdm(range(0,epochs), desc="Training Progress", unit="epoch"):
 
     start_time = time.time()
 
@@ -137,7 +137,7 @@ for i in tqdm(range(start_epoch,epochs), desc="Training Progress", unit="epoch")
     print(f"Epoch #{i} training loss: {train_loss}")
 
     eval_loss = Eval_loss(model, valid_loader, device)
-    train_history["eval_loss"].append(eval_loss)
+    train_historyl"eval_loss"].append(eval_loss)
     print(f"Epoch #{i} eval loss: {eval_loss}")
 
     mAp = eval_mAP(model, valid_loader, device, metric)

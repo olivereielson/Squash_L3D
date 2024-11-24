@@ -9,6 +9,7 @@ import torchvision.transforms.v2 as T
 from torchmetrics.detection import MeanAveragePrecision
 import time
 import os
+import json
 from torchvision.models import ResNet50_Weights
 from torchvision.models.optical_flow.raft import ResidualBlock
 from torchvision.transforms import v2
@@ -24,7 +25,7 @@ rebuild_csv=False
 
 print("******Preparing Envoirment******")
 get_gpu_status()
-device = torch.device('cpu')
+device = torch.device('cuda')
 print(torch.ones(1, device=device))
 
 seed = 0
@@ -36,8 +37,6 @@ if torch.cuda.is_available():
 check_point_dir = "/cluster/tufts/cs152l3dclass/oeiels01/run1"
 
 
-
-
 print("Device = " + str(device))
 print("Random Seed = " + str(seed))
 
@@ -46,11 +45,11 @@ print("******Preparing Data******")
 
 
 
-transform = T.Compose([
-    v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-    v2.Resize((640, 640)),  
-    # T.RandomVerticalFlip(0.5),
-    # T.RandomRotation(45),
+transform = v2.Compose([
+    v2.Resize((640, 640)),  # Resizes image and adjusts bounding boxes
+    v2.ToImage(),  # Ensures the input is a PIL Image
+    v2.ToDtype(torch.float32, scale=True),  # Converts image to float32 and scales
+    # Include other transforms as needed
 ])
 
 
@@ -64,9 +63,9 @@ valid_data = VOC(valid_csv, transform=transform,data_dir="/cluster/tufts/cs152l3
 test_data = VOC(test_csv, transform=transform,data_dir="/cluster/tufts/cs152l3dclass/oeiels01/upload_dataset")
 
 # define training and validation data loaders
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, collate_fn=collate_fn,)
-valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=1, shuffle=True, collate_fn=collate_fn)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, collate_fn=collate_fn)
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=8, shuffle=True, collate_fn=collate_fn)
+valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=8, shuffle=True, collate_fn=collate_fn)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=8, shuffle=True, collate_fn=collate_fn)
 
 print("Train_loader Size = " + str(len(train_loader)))
 print("Valid_loader Size = " + str(len(valid_loader)))
@@ -76,8 +75,8 @@ print("******Preparing Model******")
 
 epochs = 10
 num_classes = 2
-learning_rate = 0.01
-step_size = 1
+learning_rate = 0.005
+step_size = 0.1
 gamma = 0.1
 backbone_weights = ResNet50_Weights
 
@@ -98,7 +97,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, )
 
 
-#reload from checkpoints 
+
+print("******Restoring Checkpoints******")
 checkpoint = load_checkpoints(check_point_dir)
 start_epoch = 0
 if checkpoint is not None:
@@ -115,9 +115,12 @@ if checkpoint is not None:
 
 train_history = {"total_train_loss": [], "map": [], "eval_loss": []}
 
+device = next(model.parameters()).device
+print(f"The model is on device: {device}")
 
 print(f"******Starting Training: {epochs} epochs******")
 for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="epoch"):
+# for i in range(epochs):
 
     start_time = time.time()
 
@@ -127,16 +130,19 @@ for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="ep
     print(f"Epoch #{i} training loss: {train_loss}")
 
     eval_loss = Eval_loss(model, valid_loader, device)
-    train_historyl["eval_loss"].append(eval_loss)
+    train_history["eval_loss"].append(eval_loss)
     print(f"Epoch #{i} eval loss: {eval_loss}")
 
     mAp = eval_mAP(model, valid_loader, device, metric)
     train_history["map"].append(mAp)
     print(f"Epoch #{i} mAp: {mAp}")
 
-
     epoch_time = time.time() - start_time
-    tqdm.write(f"Epoch #{i} took {epoch_time:.2f} seconds")
+    tqdm.tqdm.write(f"Epoch #{i} took {epoch_time:.2f} seconds")
+
 
 print("******Saving Model******")
 torch.save(model, "fishing_model.sav")
+
+with open('train_history.json', 'w') as f:
+    json.dump(train_history, f)

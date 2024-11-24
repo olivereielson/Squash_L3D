@@ -71,6 +71,26 @@ class RecenterOnBall:
         return image, box_tensor, label
 
 
+def resize(image, boxes, size):
+    # Resize image
+    image = F.resize(image, size)
+    
+    # Get the original and new dimensions
+    orig_width, orig_height = image.size
+    new_width, new_height = size
+    
+    # Compute scaling factors
+    scale_width = new_width / orig_width
+    scale_height = new_height / orig_height
+    
+    # Adjust bounding boxes
+    boxes = boxes.clone()
+    boxes[:, [0, 2]] = boxes[:, [0, 2]] * scale_width  # x_min, x_max
+    boxes[:, [1, 3]] = boxes[:, [1, 3]] * scale_height  # y_min, y_max
+    
+    return image, boxes
+
+
 label_map = {
     "Squash": 1,
     "tennis-ball": 0
@@ -79,12 +99,13 @@ label_map = {
 
 class VOC(Dataset):
 
-    def __init__(self, CSV, transform=None):
+    def __init__(self, CSV, data_dir,transform=None):
         self.path = CSV  # Path to the folder containing the images
 
         self.labels = []
         self.images = []
         self.boxes = []
+        self.data_dir = data_dir
 
         self.transform = transform
 
@@ -112,7 +133,7 @@ class VOC(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        image = self.images[idx]
+        image = self.data_dir+"/"+self.images[idx]
         labels = [self.labels[idx]]
         boxes = [self.boxes[idx]]
 
@@ -121,14 +142,16 @@ class VOC(Dataset):
 
         image = Image.open(image).convert("RGB")
 
-        boxes = torch.as_tensor(boxes, dtype=torch.int)
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.as_tensor(labels, dtype=torch.int64)
-        iscrowd = torch.zeros((len(labels)), dtype=torch.int64)
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         image_id = torch.tensor([idx])
 
         if self.transform is not None:
-            image, boxes, labels = self.transform(image, boxes[0], labels[0])
+            image, boxes, labels = self.transform(image, boxes, labels)
+
+        
+        iscrowd = torch.zeros((len(labels)), dtype=torch.int64)
+        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
 
         target = {}
         target["boxes"] = boxes

@@ -46,7 +46,7 @@ print("******Preparing Data******")
 
 
 transform = v2.Compose([
-    v2.Resize((640, 640)),  # Resizes image and adjusts bounding boxes
+    # v2.Resize((640, 640)),  # Resizes image and adjusts bounding boxes
     v2.ToImage(),  # Ensures the input is a PIL Image
     v2.ToDtype(torch.float32, scale=True),  # Converts image to float32 and scales
     # Include other transforms as needed

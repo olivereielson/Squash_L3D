@@ -204,8 +204,12 @@ def show_examples(model, dataloader, device,save_path, num_examples=5):
                 draw.rectangle(box, outline="red", width=3)
 
             for box in boxes_real:
-                draw.rectangle(box, outline="green", width=3)
-
+                try:
+                    draw.rectangle(box, outline="green", width=3)
+                except:
+                    print("YOU FUCKED UP BIG TIME... THERE IS BAD DATA IN THE PIPELINE")
+                    print(boxes_real)
+                    print(f"Image number {number_shown}")
 
             #save the images
             filename = f"{number_shown}.png"

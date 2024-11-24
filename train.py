@@ -54,7 +54,7 @@ transform = v2.Compose([
 
 
 # define the dataset
-train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train.csv"
+train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train+synthetic.csv"
 test_csv = "/cluster/tufts/cs152l3dclass/oeiels01/test.csv"
 valid_csv = "/cluster/tufts/cs152l3dclass/oeiels01/valid.csv"
 
@@ -73,7 +73,7 @@ print("Test_loader Size = " + str(len(test_loader)))
 
 print("******Preparing Model******")
 
-epochs = 10
+epochs = 12
 num_classes = 2
 learning_rate = 0.005
 step_size = 0.1
@@ -126,23 +126,40 @@ for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="ep
 
     #train the model
     train_loss = train_one_epoch(model, optimizer, train_loader, device, lr_scheduler=lr_scheduler)
-    train_history["total_train_loss"].append(train_loss)
-    print(f"Epoch #{i} training loss: {train_loss}")
+    train_history["total_train_loss"].append(float(train_loss))
+    tqdm.tqdm.write(f"Epoch #{i} training loss: {train_loss}")
 
     eval_loss = Eval_loss(model, valid_loader, device)
-    train_history["eval_loss"].append(eval_loss)
-    print(f"Epoch #{i} eval loss: {eval_loss}")
+    train_history["eval_loss"].append(float(eval_loss))
+    tqdm.tqdm.write(f"Epoch #{i} eval loss: {eval_loss}")
 
     mAp = eval_mAP(model, valid_loader, device, metric)
-    train_history["map"].append(mAp)
-    print(f"Epoch #{i} mAp: {mAp}")
+    train_history["map"].append(float(mAp))
+    tqdm.tqdm.write(f"Epoch #{i} mAP: {mAp}")
+
+    # Save the model state every 2 epochs
+    if i % 2 ==0:
+        checkpoint = {
+        'epoch': i,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'lr_scheduler_state_dict': lr_scheduler.state_dict(),
+        'train_history': train_history,
+         }
+        torch.save(checkpoint, os.path.join(check_point_dir, 'checkpoint.pth'))
+
 
     epoch_time = time.time() - start_time
     tqdm.tqdm.write(f"Epoch #{i} took {epoch_time:.2f} seconds")
 
 
-print("******Saving Model******")
-torch.save(model, "fishing_model.sav")
 
-with open('train_history.json', 'w') as f:
+
+print("******Saving Model******")
+torch.save(model, f"{check_point_dir}/model.sav")
+
+with open(f'{check_point_dir}/train_history.json', 'w') as f:
     json.dump(train_history, f)
+
+
+print("ALL DONE")

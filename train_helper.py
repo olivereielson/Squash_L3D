@@ -98,6 +98,8 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
+
+
 def eval_mAP(model, dataloader, device, metric):
     model.eval()
     all_avg_precisions = []

@@ -77,8 +77,8 @@ print("******Preparing Model******")
 
 epochs = 40
 num_classes = 2
-learning_rate = 0.005
-step_size = 0.1
+learning_rate = 1
+step_size = 5
 gamma = 0.05
 weight_decay= 0.0005
 
@@ -106,9 +106,8 @@ model.to(device)
 metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",iou_thresholds=[0.2,0.5,0.75])
 
 metric.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, )
-
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate,weight_decay=weight_decay)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size,)
 
 
 print("******Restoring Checkpoints******")

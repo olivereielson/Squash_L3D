@@ -16,6 +16,44 @@ from torchvision.models.detection.retinanet import RetinaNet, RetinaNetHead
 import torch.nn.functional as F
 
 
+def load_checkpoints(checkpoint_dir):
+    """
+    Loads the latest checkpoint from the specified directory and returns the checkpoint dictionary.
+
+    Args:
+        checkpoint_dir (str): The directory where checkpoint files are stored.
+
+    Returns:
+        dict or None: The checkpoint dictionary if a checkpoint is found and loaded successfully; otherwise, None.
+    """
+    if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
+        # List all checkpoint files in the directory with .pth extension
+        files = [f for f in os.listdir(checkpoint_dir) if f.endswith('.pth')]
+
+        if files:
+            # Find the latest checkpoint based on creation time
+            latest_checkpoint = max(
+                [os.path.join(checkpoint_dir, f) for f in files],
+                key=os.path.getctime
+            )
+            print(f"Loading checkpoint from '{latest_checkpoint}'")
+
+            try:
+                checkpoint = torch.load(latest_checkpoint)
+                print("Checkpoint loaded successfully.")
+                return checkpoint
+            except Exception as e:
+                print(f"Error loading checkpoint: {e}")
+                return None
+        else:
+            print(f"No checkpoint files found in '{checkpoint_dir}'.")
+            return None
+    else:
+        print(f"Checkpoint directory '{checkpoint_dir}' does not exist.")
+        return None
+
+
+
 def split_data(data, test_size=0.10, valid_size=0.2, random_state=40):
     unique_image_paths = data['image_path'].unique()
     train_paths, temp_paths = train_test_split(unique_image_paths, test_size=(test_size + valid_size),
@@ -99,12 +137,12 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
         # load data onto the GPU
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
         # train on data
+
         loss_dict = model(images, targets)
+
         losses = sum(loss for loss in loss_dict.values())
         total_loss += losses.item()
-
 
         # check if I was messed something up
         if not math.isfinite(losses.item()):

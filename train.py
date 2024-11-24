@@ -34,7 +34,7 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 
 
-check_point_dir = "/cluster/tufts/cs152l3dclass/oeiels01/run1"
+check_point_dir = "/cluster/tufts/cs152l3dclass/oeiels01/base_line"
 
 
 print("Device = " + str(device))
@@ -54,7 +54,7 @@ transform = v2.Compose([
 
 
 # define the dataset
-train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train+synthetic.csv"
+train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train.csv"
 test_csv = "/cluster/tufts/cs152l3dclass/oeiels01/test.csv"
 valid_csv = "/cluster/tufts/cs152l3dclass/oeiels01/valid.csv"
 
@@ -63,9 +63,9 @@ valid_data = VOC(valid_csv, transform=transform,data_dir="/cluster/tufts/cs152l3
 test_data = VOC(test_csv, transform=transform,data_dir="/cluster/tufts/cs152l3dclass/oeiels01/upload_dataset")
 
 # define training and validation data loaders
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=8, shuffle=True, collate_fn=collate_fn)
-valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=8, shuffle=True, collate_fn=collate_fn)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=8, shuffle=True, collate_fn=collate_fn)
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=16, shuffle=True, collate_fn=collate_fn)
+valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=16, shuffle=True, collate_fn=collate_fn)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=16, shuffle=True, collate_fn=collate_fn)
 
 print("Train_loader Size = " + str(len(train_loader)))
 print("Valid_loader Size = " + str(len(valid_loader)))
@@ -73,7 +73,7 @@ print("Test_loader Size = " + str(len(test_loader)))
 
 print("******Preparing Model******")
 
-epochs = 12
+epochs = 40
 num_classes = 2
 learning_rate = 0.005
 step_size = 0.1
@@ -120,25 +120,29 @@ print(f"The model is on device: {device}")
 
 print(f"******Starting Training: {epochs} epochs******")
 for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="epoch"):
-# for i in range(epochs):
 
     start_time = time.time()
+    tqdm.tqdm.write(f"Epoch #{i}")
+
+
 
     #train the model
     train_loss = train_one_epoch(model, optimizer, train_loader, device, lr_scheduler=lr_scheduler)
     train_history["total_train_loss"].append(float(train_loss))
-    tqdm.tqdm.write(f"Epoch #{i} training loss: {train_loss}")
+    tqdm.tqdm.write(f"\ttraining loss: {train_loss}")
 
+    #do eval loss
     eval_loss = Eval_loss(model, valid_loader, device)
     train_history["eval_loss"].append(float(eval_loss))
-    tqdm.tqdm.write(f"Epoch #{i} eval loss: {eval_loss}")
+    tqdm.tqdm.write(f"\teval loss: {eval_loss}")
 
+    #do MAP
     mAp = eval_mAP(model, valid_loader, device, metric)
     train_history["map"].append(float(mAp))
-    tqdm.tqdm.write(f"Epoch #{i} mAP: {mAp}")
+    tqdm.tqdm.write(f"\tmAP: {mAp}")
 
     # Save the model state every 2 epochs
-    if i % 2 ==0:
+    if i % 5 ==0:
         checkpoint = {
         'epoch': i,
         'model_state_dict': model.state_dict(),
@@ -146,16 +150,25 @@ for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="ep
         'lr_scheduler_state_dict': lr_scheduler.state_dict(),
         'train_history': train_history,
          }
-        torch.save(checkpoint, os.path.join(check_point_dir, 'checkpoint.pth'))
+        checkpoint_path = os.path.join(check_point_dir, f'checkpoint_epoch_{i}.pth')
+        torch.save(checkpoint, checkpoint_path)
+        tqdm.tqdm.write(f"\tModel Checkpoint Saved")
+
+
+
+    #save some examples to santity check the work
+    show_examples(model,test_loader,device,"Examples",num_examples=10)
 
 
     epoch_time = time.time() - start_time
-    tqdm.tqdm.write(f"Epoch #{i} took {epoch_time:.2f} seconds")
+    tqdm.tqdm.write(f"\tThis took {epoch_time:.2f} seconds")
+
 
 
 
 
 print("******Saving Model******")
+
 torch.save(model, f"{check_point_dir}/model.sav")
 
 with open(f'{check_point_dir}/train_history.json', 'w') as f:

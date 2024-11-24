@@ -5,7 +5,9 @@ import sys
 import time
 from torchmetrics.detection import MeanAveragePrecision
 from sklearn.model_selection import train_test_split
+import warnings
 
+# Suppress all FutureWarnings
 from torchvision import transforms
 import torchvision
 import torch
@@ -26,6 +28,12 @@ def load_checkpoints(checkpoint_dir):
     Returns:
         dict or None: The checkpoint dictionary if a checkpoint is found and loaded successfully; otherwise, None.
     """
+
+    #make the dumb bitch shutup... if I get hack i get hacked
+    warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+
     if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
         # List all checkpoint files in the directory with .pth extension
         files = [f for f in os.listdir(checkpoint_dir) if f.endswith('.pth')]
@@ -50,6 +58,8 @@ def load_checkpoints(checkpoint_dir):
             return None
     else:
         print(f"Checkpoint directory '{checkpoint_dir}' does not exist.")
+        os.mkdir(checkpoint_dir)
+        assert os.path.exists(checkpoint_dir), "Failed to make checkpoint dir"
         return None
 
 
@@ -169,12 +179,13 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
     return total_loss / len(data_loader)
 
 
-def show_examples(model, dataloader, device, num_examples=5):
+def show_examples(model, dataloader, device,save_path, num_examples=5):
     """
     Show `num_examples` predictions from the dataset.
     """
     model.eval()
     number_shown = 0
+    os.makedirs(save_path, exist_ok=True)
     for images, targets in dataloader:
 
         images = list(image.to(device) for image in images)
@@ -195,7 +206,12 @@ def show_examples(model, dataloader, device, num_examples=5):
             for box in boxes_real:
                 draw.rectangle(box, outline="green", width=3)
 
-            image.show()
+
+            #save the images
+            filename = f"{number_shown}.png"
+            filepath = os.path.join(save_path, filename)
+            image.save(filepath)
+
             number_shown += 1
             if number_shown >= num_examples:
                 return

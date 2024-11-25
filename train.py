@@ -35,7 +35,7 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 
 
-check_point_dir = "/cluster/tufts/cs152l3dclass/oeiels01/base_line"
+check_point_dir = "/cluster/tufts/cs152l3dclass/oeiels01/synthetic"
 
 
 print("Device = " + str(device))
@@ -56,7 +56,7 @@ transform = v2.Compose([
 
 
 # define the dataset
-train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train.csv"
+train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train+synthetic.csv"
 test_csv = "/cluster/tufts/cs152l3dclass/oeiels01/test.csv"
 valid_csv = "/cluster/tufts/cs152l3dclass/oeiels01/valid.csv"
 
@@ -75,7 +75,7 @@ print("Test_loader Size = " + str(len(test_loader)))
 
 print("******Preparing Model******")
 
-epochs = 40
+epochs = 25
 num_classes = 2
 learning_rate = 1
 step_size = 5
@@ -154,7 +154,7 @@ for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="ep
     tqdm.tqdm.write(f"\tmAP: {mAp}")
 
     # Save the model state every 2 epochs
-    if i % 5 ==0:
+    if i % 2 ==0:
         checkpoint = {
         'epoch': i,
         'model_state_dict': model.state_dict(),
@@ -168,14 +168,17 @@ for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="ep
 
 
 
+
     #save some examples to santity check the work
     show_examples(model,test_loader,device,"Examples",num_examples=10)
 
 
     epoch_time = time.time() - start_time
     tqdm.tqdm.write(f"\tThis took {epoch_time:.2f} seconds")
-
-
+    
+    #save the train history
+    with open(f'{check_point_dir}/train_history.json', 'w') as f:
+        json.dump(train_history, f)
 
 
 
@@ -183,8 +186,6 @@ print("******Saving Model******")
 
 torch.save(model, f"{check_point_dir}/model.sav")
 
-with open(f'{check_point_dir}/train_history.json', 'w') as f:
-    json.dump(train_history, f)
 
 
 print("ALL DONE")

@@ -20,6 +20,8 @@ from train_helper import show_examples, collate_fn, get_gpu_status, train_one_ep
 from train_helper import *
 from validate_csv import validate_csv_files
 from torchvision.models.detection.retinanet import RetinaNetClassificationHead
+import argparse
+
 
 num_classes = 1
 rebuild_csv=False
@@ -35,7 +37,7 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 
 
-check_point_dir = "/cluster/tufts/cs152l3dclass/oeiels01/synthetic"
+check_point_dir = "base"
 
 
 print("Device = " + str(device))
@@ -43,7 +45,6 @@ print("Random Seed = " + str(seed))
 
 # split the data
 print("******Preparing Data******")
-
 
 
 transform = v2.Compose([
@@ -56,7 +57,7 @@ transform = v2.Compose([
 
 
 # define the dataset
-train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train+synthetic.csv"
+train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train.csv"
 test_csv = "/cluster/tufts/cs152l3dclass/oeiels01/test.csv"
 valid_csv = "/cluster/tufts/cs152l3dclass/oeiels01/valid.csv"
 
@@ -69,18 +70,18 @@ train_loader = torch.utils.data.DataLoader(train_data, batch_size=32, shuffle=Tr
 valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=16, shuffle=True, collate_fn=collate_fn,num_workers=2)
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=16, shuffle=True, collate_fn=collate_fn,num_workers=2)
 
-print("Train_loader Size = " + str(len(train_loader)))
-print("Valid_loader Size = " + str(len(valid_loader)))
-print("Test_loader Size = " + str(len(test_loader)))
+print(f"Train_loader Size = {len(train_loader)}, {len(train_data.removed_images)} were removed")
+print(f"Valid_loader Size = {len(valid_loader)}, {len(valid_data.removed_images)} were removed")
+print(f"Test_loader Size = {len(test_loader)}, {len(test_data.removed_images)} were removed")
 
 print("******Preparing Model******")
 
 epochs = 25
 num_classes = 2
-learning_rate = 1
-step_size = 5
-gamma = 0.05
-weight_decay= 0.0005
+learning_rate = 0.005
+step_size = 0.01
+gamma = 0.9
+weight_decay= 0.0009
 
 weights = RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT
 
@@ -90,25 +91,25 @@ print("Step Size = " + str(step_size))
 print("Gamma = " + str(gamma))
 print("Number of Classes = " + str(num_classes))
 
-# model = torchvision.models.detection.retinanet_resnet50_fpn_v2(weights=weights,
-#                                                                num_classes=num_classes,    
-#                                                                pretrained_backbone=False, ) 
-
 
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
 in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes,)
-
-
 model.to(device)
 
 
-metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",iou_thresholds=[0.2,0.5,0.75])
+metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",iou_thresholds=[0.5])
 
 metric.to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate,weight_decay=weight_decay)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size,)
 
+# Initialize train history with hyperparameters
+train_history = {
+    "total_train_loss": [],
+    "map": [],
+    "eval_loss": [],
+}
 
 print("******Restoring Checkpoints******")
 checkpoint = load_checkpoints(check_point_dir)
@@ -125,17 +126,15 @@ if checkpoint is not None:
         print(f"Failed to load from checkpoint...you fucked up")
 
 
-train_history = {"total_train_loss": [], "map": [], "eval_loss": []}
-
 device = next(model.parameters()).device
 print(f"The model is on device: {device}")
+
 
 print(f"******Starting Training: {epochs} epochs******")
 for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="epoch"):
 
     start_time = time.time()
     tqdm.tqdm.write(f"Epoch #{i}")
-
 
 
     #train the model
@@ -164,28 +163,53 @@ for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="ep
          }
         checkpoint_path = os.path.join(check_point_dir, f'checkpoint_epoch_{i}.pth')
         torch.save(checkpoint, checkpoint_path)
+        # make sure we are not storing a million checkpoints 
+        manage_checkpoints(check_point_dir,max_checkpoints=3)
+
         tqdm.tqdm.write(f"\tModel Checkpoint Saved")
-
-
 
 
     #save some examples to santity check the work
     show_examples(model,test_loader,device,"Examples",num_examples=10)
-
+    #Plot the training history
+    plot_training_history(train_history,"Examples")
 
     epoch_time = time.time() - start_time
-    tqdm.tqdm.write(f"\tThis took {epoch_time:.2f} seconds")
+    tqdm.tqdm.write(f"\tThis epoch took {epoch_time:.2f} seconds")
     
-    #save the train history
-    with open(f'{check_point_dir}/train_history.json', 'w') as f:
-        json.dump(train_history, f)
-
 
 
 print("******Saving Model******")
 
+#save the model
 torch.save(model, f"{check_point_dir}/model.sav")
+ #save the train history
+
+
+train_history["hyperparams"]= {
+        "learning_rate": learning_rate,
+        "step_size": step_size,
+        "gamma": gamma,
+        "weight_decay": weight_decay,
+        "batch_size": {
+            "train": 32,
+            "valid": 16,
+            "test": 16
+        },
+        "num_classes": num_classes,
+        "epochs": epochs,
+        "seed": seed
+    }
+
+
+with open(f'{check_point_dir}/train_history.json', 'w') as f:
+    json.dump(train_history, f)
+
+
+print("******Training Complete******")
 
 
 
-print("ALL DONE")
+
+
+    

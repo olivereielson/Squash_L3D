@@ -6,7 +6,7 @@ import time
 from torchmetrics.detection import MeanAveragePrecision
 from sklearn.model_selection import train_test_split
 import warnings
-
+import tqdm
 # Suppress all FutureWarnings
 from torchvision import transforms
 import torchvision
@@ -16,6 +16,55 @@ from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.retinanet import RetinaNet, RetinaNetHead
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
+
+
+
+def plot_training_history(data, save_path):
+
+    assert data is not None, "No train data pased in"
+    # Extract data
+    epochs = range(1, len(data["total_train_loss"]) + 1)
+    total_train_loss = data["total_train_loss"]
+    eval_loss = data["eval_loss"]
+    map_scores = data["map"]
+
+    # Create the loss graph
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, total_train_loss, label="Total Train Loss", marker='o')
+    plt.plot(epochs, eval_loss, label="Evaluation Loss", marker='o')
+    plt.plot(epochs, map_scores, label="mAP", marker='o')
+
+    # Customize the plot
+    plt.title("Training and Evaluation Loss and mAP over Epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel("Values")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    # Save the graph to the specified file
+    plt.savefig(save_path+"/train_history.png")
+    plt.close()  # Close the plot to free memory
+
+
+
+def manage_checkpoints(check_point_dir, max_checkpoints=5):
+
+
+    assert os.path.exists(check_point_dir), f"Checkpoint Dir does not exist at: {check_point_dir}"
+    # Get a list of checkpoint files sorted by epoch number
+    checkpoint_files = sorted(
+        [f for f in os.listdir(check_point_dir) if f.startswith("checkpoint_epoch_")],
+        key=lambda x: int(x.split('_')[-1].split('.')[0])  # Sort by epoch number
+    )
+
+    # Remove older checkpoints if exceeding `max_checkpoints`
+    while len(checkpoint_files) > max_checkpoints:
+        oldest_checkpoint = os.path.join(check_point_dir, checkpoint_files.pop(0))
+        os.remove(oldest_checkpoint)
+        print(f"\tOld Checkpoint Removed: {oldest_checkpoint}")
+
 
 
 def load_checkpoints(checkpoint_dir):
@@ -116,7 +165,7 @@ def eval_mAP(model, dataloader, device, metric):
             formatted_targets = [{'labels': t['labels'], 'boxes': t['boxes']} for t in targets]
 
             metric.update(formatted_preds, formatted_targets)
-            avg_precision = metric.compute()['map']
+            avg_precision = metric.compute()['map_50']
 
             all_avg_precisions.append(avg_precision)
 
@@ -155,7 +204,7 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
         target_devices = {value.device for target in targets for value in target.values() if torch.is_tensor(value)}
     
         # Ensure all data is on the correct device
-        assert all(dev == device for dev in image_devices), "Not all images are on the correct device"
+        assert all(dev == device for dev in image_devices), f"Not all images are on the correct device: {image_devices}"
         assert all(dev == device for dev in target_devices), "Not all targets are on the correct device"
 
         # train on data
@@ -172,7 +221,7 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
 
         optimizer.zero_grad()
         losses.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
         optimizer.step()
 
     if lr_scheduler is not None:
@@ -221,3 +270,7 @@ def show_examples(model, dataloader, device,save_path, num_examples=5):
             number_shown += 1
             if number_shown >= num_examples:
                 return
+
+
+
+

@@ -21,195 +21,185 @@ from train_helper import *
 from validate_csv import validate_csv_files
 from torchvision.models.detection.retinanet import RetinaNetClassificationHead
 import argparse
+from datetime import datetime
 
 
-num_classes = 1
-rebuild_csv=False
-
-print("******Preparing Envoirment******")
-get_gpu_status()
-device = torch.device('cuda')
-print(torch.ones(1, device=device))
-
-seed = 0
-torch.manual_seed(seed)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(seed)
 
 
-check_point_dir = "base"
-
-
-print("Device = " + str(device))
-print("Random Seed = " + str(seed))
-
-# split the data
-print("******Preparing Data******")
-
-
-transform = v2.Compose([
-    #DONT USE RESIZE IT DOES NOT DO LABELS
-    # v2.Resize((640, 640)),  # Resizes image and adjusts bounding boxes
-    v2.ToImage(),  # Ensures the input is a PIL Image
-    v2.ToDtype(torch.float32, scale=True),  # Converts image to float32 and scales
-    # Include other transforms as needed
-])
-
-
-# define the dataset
-train_csv = "/cluster/tufts/cs152l3dclass/oeiels01/train.csv"
-test_csv = "/cluster/tufts/cs152l3dclass/oeiels01/test.csv"
-valid_csv = "/cluster/tufts/cs152l3dclass/oeiels01/valid.csv"
-
-train_data = VOC(train_csv, transform=transform,data_dir="/cluster/tufts/cs152l3dclass/oeiels01/upload_dataset")
-valid_data = VOC(valid_csv, transform=transform,data_dir="/cluster/tufts/cs152l3dclass/oeiels01/upload_dataset")
-test_data = VOC(test_csv, transform=transform,data_dir="/cluster/tufts/cs152l3dclass/oeiels01/upload_dataset")
-
-# define training and validation data loaders
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=32, shuffle=True, collate_fn=collate_fn,num_workers=2)
-valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=16, shuffle=True, collate_fn=collate_fn,num_workers=2)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=16, shuffle=True, collate_fn=collate_fn,num_workers=2)
-
-print(f"Train_loader Size = {len(train_loader)}, {len(train_data.removed_images)} were removed")
-print(f"Valid_loader Size = {len(valid_loader)}, {len(valid_data.removed_images)} were removed")
-print(f"Test_loader Size = {len(test_loader)}, {len(test_data.removed_images)} were removed")
-
-print("******Preparing Model******")
-
-epochs = 25
-num_classes = 2
-learning_rate = 0.005
-step_size = 0.01
-gamma = 0.9
-weight_decay= 0.0009
-
-weights = RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT
-
-print("Backbone Weights = " + str(weights))
-print("Learning Rate = " + str(learning_rate))
-print("Step Size = " + str(step_size))
-print("Gamma = " + str(gamma))
-print("Number of Classes = " + str(num_classes))
-
-
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
-in_features = model.roi_heads.box_predictor.cls_score.in_features
-model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes,)
-model.to(device)
-
-
-metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",iou_thresholds=[0.5])
-
-metric.to(device)
-optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate,weight_decay=weight_decay)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size,)
-
-# Initialize train history with hyperparameters
-train_history = {
-    "total_train_loss": [],
-    "map": [],
-    "eval_loss": [],
-}
-
-print("******Restoring Checkpoints******")
-checkpoint = load_checkpoints(check_point_dir)
-start_epoch = 0
-if checkpoint is not None:
-    try:
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
-        start_epoch = checkpoint['epoch'] + 1
-        train_history = checkpoint['train_history']
-        print(f"Restored from last checkpoint...Training from epoch {start_epoch}")
-    except:
-        print(f"Failed to load from checkpoint...you fucked up")
-
-
-device = next(model.parameters()).device
-print(f"The model is on device: {device}")
-
-
-print(f"******Starting Training: {epochs} epochs******")
-for i in tqdm.tqdm(range(start_epoch,epochs), desc="Training Progress", unit="epoch"):
-
-    start_time = time.time()
-    tqdm.tqdm.write(f"Epoch #{i}")
-
-
-    #train the model
-    train_loss = train_one_epoch(model, optimizer, train_loader, device, lr_scheduler=lr_scheduler)
-    train_history["total_train_loss"].append(float(train_loss))
-    tqdm.tqdm.write(f"\ttraining loss: {train_loss}")
-
-    #do eval loss
-    eval_loss = Eval_loss(model, valid_loader, device)
-    train_history["eval_loss"].append(float(eval_loss))
-    tqdm.tqdm.write(f"\teval loss: {eval_loss}")
-
-    #do MAP
-    mAp = eval_mAP(model, valid_loader, device, metric)
-    train_history["map"].append(float(mAp))
-    tqdm.tqdm.write(f"\tmAP: {mAp}")
-
-    # Save the model state every 2 epochs
-    if i % 2 ==0:
-        checkpoint = {
-        'epoch': i,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'lr_scheduler_state_dict': lr_scheduler.state_dict(),
-        'train_history': train_history,
-         }
-        checkpoint_path = os.path.join(check_point_dir, f'checkpoint_epoch_{i}.pth')
-        torch.save(checkpoint, checkpoint_path)
-        # make sure we are not storing a million checkpoints 
-        manage_checkpoints(check_point_dir,max_checkpoints=3)
-
-        tqdm.tqdm.write(f"\tModel Checkpoint Saved")
-
-
-    #save some examples to santity check the work
-    show_examples(model,test_loader,device,"Examples",num_examples=10)
-    #Plot the training history
-    plot_training_history(train_history,"Examples")
-
-    epoch_time = time.time() - start_time
-    tqdm.tqdm.write(f"\tThis epoch took {epoch_time:.2f} seconds")
+# Function to parse command-line arguments
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train FasterRCNN with hyperparameters passed from the terminal.")
     
+    parser.add_argument("--job_id", type=str, default=None, help="Batch Job id")
 
 
-print("******Saving Model******")
 
-#save the model
-torch.save(model, f"{check_point_dir}/model.sav")
- #save the train history
+    # Dataset paths with defaults
+    parser.add_argument("--train_csv", type=str, default="/cluster/tufts/cs152l3dclass/oeiels01/train.csv", help="Path to the training CSV file (default: ./train.csv)")
+    parser.add_argument("--valid_csv", type=str, default="/cluster/tufts/cs152l3dclass/oeiels01/valid.csv", help="Path to the validation CSV file (default: ./valid.csv)")
+    parser.add_argument("--test_csv", type=str, default="/cluster/tufts/cs152l3dclass/oeiels01/test.csv", help="Path to the test CSV file (default: ./test.csv)")
+    parser.add_argument("--data_dir", type=str, default="/cluster/tufts/cs152l3dclass/oeiels01/upload_dataset", help="Directory containing the dataset (default: ./dataset)")
+    parser.add_argument("--check_point_dir", type=str, default="checkpoints", help="Directory to save checkpoints (default: ./checkpoints)")
+    
+    # Hyperparameters
+    parser.add_argument("--epochs", type=int, default=25, help="Number of epochs to train (default: 25)")
+    parser.add_argument("--learning_rate", type=float, default=0.005, help="Learning rate (default: 0.005)")
+    parser.add_argument("--step_size", type=int, default=10, help="Step size for learning rate scheduler (default: 10)")
+    parser.add_argument("--gamma", type=float, default=0.9, help="Gamma for learning rate scheduler (default: 0.9)")
+    parser.add_argument("--weight_decay", type=float, default=0.0009, help="Weight decay for optimizer (default: 0.0009)")
+    parser.add_argument("--train_batch_size", type=int, default=32, help="Batch size for training (default: 32)")
+    parser.add_argument("--valid_batch_size", type=int, default=16, help="Batch size for validation (default: 16)")
+    parser.add_argument("--test_batch_size", type=int, default=16, help="Batch size for testing (default: 16)")
+    parser.add_argument("--num_classes", type=int, default=2, help="Number of classes (including background) (default: 2)")
+
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--show_ouputs", action="store_true", help="Show example outputs")
+    parser.add_argument("--checkpoints", action="store_true", help="Enable Checkpoint Saving")
 
 
-train_history["hyperparams"]= {
-        "learning_rate": learning_rate,
-        "step_size": step_size,
-        "gamma": gamma,
-        "weight_decay": weight_decay,
-        "batch_size": {
-            "train": 32,
-            "valid": 16,
-            "test": 16
-        },
-        "num_classes": num_classes,
-        "epochs": epochs,
-        "seed": seed
+
+
+    return parser.parse_args()
+
+# Helper function for conditional printing
+def log(message, verbose=True):
+    if verbose:
+        print(message)
+
+# Main training function
+def main(args):
+    log("******Preparing Environment******", args.verbose)
+    if args.verbose:
+        get_gpu_status()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    log(torch.ones(1, device=device), args.verbose)
+    
+    # Set random seed for reproducibility
+    seed = 0
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    log(f"Device: {device}", args.verbose)
+    log(f"Random Seed: {seed}", args.verbose)
+
+    # Data preparation
+    log("******Preparing Data******", args.verbose)
+    transform = v2.Compose([
+        v2.ToImage(),
+        v2.ToDtype(torch.float32, scale=True),
+    ])
+
+    train_data = VOC(args.train_csv, transform=transform, data_dir=args.data_dir)
+    valid_data = VOC(args.valid_csv, transform=transform, data_dir=args.data_dir)
+    test_data = VOC(args.test_csv, transform=transform, data_dir=args.data_dir)
+
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2)
+    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=args.valid_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.test_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2)
+
+    log(f"Train_loader Size = {len(train_loader)}, {len(train_data.removed_images)} images removed", args.verbose)
+    log(f"Valid_loader Size = {len(valid_loader)}, {len(valid_data.removed_images)} images removed", args.verbose)
+    log(f"Test_loader Size = {len(test_loader)}, {len(test_data.removed_images)} images removed", args.verbose)
+
+    # Model setup
+    log("******Preparing Model******", args.verbose)
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, args.num_classes)
+    model.to(device)
+
+    metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox", iou_thresholds=[0.5])
+    metric.to(device)
+    
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
+
+    train_history = {
+        "total_train_loss": [],
+        "map": [],
+        "eval_loss": [],
+        "hyperparams": vars(args),
+        "start_time" : datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'end_time': -1,
+        'job_id' : args.job_id
     }
 
 
-with open(f'{check_point_dir}/train_history.json', 'w') as f:
-    json.dump(train_history, f)
+    log("******Restoring Checkpoints******",args.verbose)
+    if args.checkpoints:
+        checkpoint = load_checkpoints(args.check_point_dir)
+        start_epoch = 0
+        if checkpoint is not None:
+            try:
+                model.load_state_dict(checkpoint['model_state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
+                start_epoch = checkpoint['epoch'] + 1
+                train_history = checkpoint['train_history']
+                log(f"Restored from last checkpoint...Training from epoch {start_epoch}",args.verbose)
+            except:
+                print(f"Failed to load from checkpoint...you fucked up")
 
 
-print("******Training Complete******")
+
+    # Training loop
+    log("******Starting Training******", args.verbose)
+    for epoch in tqdm.tqdm(range(args.epochs), desc="Training Progress", unit="epoch"):
+        train_loss = train_one_epoch(model, optimizer, train_loader, device, lr_scheduler=lr_scheduler)
+        train_history["total_train_loss"].append(float(train_loss))
+        log(f"Training Loss: {train_loss}", args.verbose)
+
+        eval_loss = Eval_loss(model, valid_loader, device)
+        train_history["eval_loss"].append(float(eval_loss))
+        log(f"Validation Loss: {eval_loss}", args.verbose)
+
+        mAp = eval_mAP(model, valid_loader, device, metric)
+        train_history["map"].append(float(mAp))
+        log(f"mAP: {mAp}", args.verbose)
+
+        if args.checkpoints and (epoch + 1) % 2 == 0:
+            checkpoint = {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "lr_scheduler_state_dict": lr_scheduler.state_dict(),
+                "train_history": train_history,
+            }
+            checkpoint_path = os.path.join(args.check_point_dir, f"checkpoint_epoch_{epoch + 1}.pth")
+            torch.save(checkpoint, checkpoint_path)
+            log(f"Model checkpoint saved: {checkpoint_path}", args.verbose)
+
+        if args.show_ouputs:
+            #save some examples to santity check the work
+            show_examples(model,test_loader,device,"Examples",num_examples=10)
+            #Plot the training history
+            plot_training_history(train_history,"Examples")
 
 
 
+    # Save final model and training history
+    log("******Saving Final Model******", args.verbose)
+    train_history["end_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs(args.check_point_dir, exist_ok=True)
+    torch.save(model, os.path.join(args.check_point_dir, "final_model.pth"))
+    with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
+        json.dump(train_history, f)
 
 
-    
+    #save to folder of just past runs 
+    if args.job_id is not None:
+        os.makedirs(f"Results/{args.job_id}", exist_ok=True)
+        with open(os.path.join("Results", f"{args.job_id}/train_history.json"), "w") as f:
+            json.dump(train_history, f)
+        
+        #save training history
+        plot_training_history(train_history,f"Results/{args.job_id}")
+
+
+    log("******Training Complete******", args.verbose)
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    main(args)

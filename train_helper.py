@@ -198,15 +198,6 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
         
-        
-        # Check devices of images and targets
-        image_devices = {image.device for image in images}
-        target_devices = {value.device for target in targets for value in target.values() if torch.is_tensor(value)}
-    
-        # Ensure all data is on the correct device
-        assert all(dev == device for dev in image_devices), f"Not all images are on the correct device: {image_devices}"
-        assert all(dev == device for dev in target_devices), "Not all targets are on the correct device"
-
         # train on data
         loss_dict = model(images, targets)
 

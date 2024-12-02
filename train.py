@@ -22,6 +22,7 @@ from validate_csv import validate_csv_files
 from torchvision.models.detection.retinanet import RetinaNetClassificationHead
 import argparse
 from datetime import datetime
+from segment_transform import CourtTransform
 
 
 
@@ -88,6 +89,7 @@ def main(args):
     transform = v2.Compose([
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
+        CourtTransform(),
     ])
 
     train_data = VOC(args.train_csv, transform=transform, data_dir=args.data_dir)

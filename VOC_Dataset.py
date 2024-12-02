@@ -1,5 +1,7 @@
 import warnings
 
+import cv2
+import numpy as np
 import torch
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset
@@ -93,16 +95,20 @@ class CourtTransform:
 
         # print("Boxes:", boxes.tolist())
         # print("Labels:", labels.tolist())
+
         image = np.array(image)
         # Apply court color transformation
-        new_image = self.court_color(image)
-        # Apply line transformation
-        new_image = self.change_lines(image, new_image)
-        # Apply ball transformation for each bounding box
-        # for box, label in zip(boxes.tolist(), labels.tolist()):
         if labels.tolist() == label_map["tennis-ball"]:
+            new_image = self.court_color(image)
+            # Apply line transformation
+            new_image = self.change_lines(image, new_image)
+            # Apply ball transformation for each bounding box
+            # for box, label in zip(boxes.tolist(), labels.tolist()):
+
             new_image = self.change_ball(image, new_image, boxes.tolist())
-        return new_image, boxes, labels
+            return new_image, boxes, labels
+        else:
+            return image, boxes, labels
 
 class RecenterOnBall:
     def __init__(self, crop_size):

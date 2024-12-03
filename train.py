@@ -14,9 +14,9 @@ from torchvision.models import ResNet50_Weights
 from torchvision.models.optical_flow.raft import ResidualBlock
 from torchvision.transforms import v2
 from torchvision.models.detection import retinanet_resnet50_fpn_v2, RetinaNet_ResNet50_FPN_V2_Weights
-from VOC_Dataset import VOC
+from VOC_Dataset import VOC, FlipWithBBoxes, ResizeWithBBoxes
 from create_CSV import generate_csv
-from train_helper import show_examples, collate_fn, get_gpu_status, train_one_epoch, split_data, Eval_loss, eval_mAP
+from train_helper import show_examples, collate_fn, get_gpu_status, train_one_epoch, Eval_loss, eval_mAP
 from train_helper import *
 from validate_csv import validate_csv_files
 from torchvision.models.detection.retinanet import RetinaNetClassificationHead
@@ -32,8 +32,6 @@ def parse_args():
     
     parser.add_argument("--job_id", type=str, default=None, help="Batch Job id")
 
-
-
     # Dataset paths with defaults
     parser.add_argument("--train_csv", type=str, default="/cluster/tufts/cs152l3dclass/oeiels01/train.csv", help="Path to the training CSV file (default: ./train.csv)")
     parser.add_argument("--valid_csv", type=str, default="/cluster/tufts/cs152l3dclass/oeiels01/valid.csv", help="Path to the validation CSV file (default: ./valid.csv)")
@@ -43,21 +41,18 @@ def parse_args():
     
     # Hyperparameters
     parser.add_argument("--epochs", type=int, default=25, help="Number of epochs to train (default: 25)")
-    parser.add_argument("--learning_rate", type=float, default=0.005, help="Learning rate (default: 0.005)")
-    parser.add_argument("--step_size", type=int, default=10, help="Step size for learning rate scheduler (default: 10)")
-    parser.add_argument("--gamma", type=float, default=0.9, help="Gamma for learning rate scheduler (default: 0.9)")
-    parser.add_argument("--weight_decay", type=float, default=0.0009, help="Weight decay for optimizer (default: 0.0009)")
-    parser.add_argument("--train_batch_size", type=int, default=32, help="Batch size for training (default: 32)")
+    parser.add_argument("--learning_rate", type=float, default=1, help="Learning rate (default: 0.005)")
+    parser.add_argument("--step_size", type=int, default=5, help="Step size for learning rate scheduler (default: 10)")
+    parser.add_argument("--gamma", type=float, default=0.1, help="Gamma for learning rate scheduler (default: 0.9)")
+    parser.add_argument("--weight_decay", type=float, default=0.0001, help="Weight decay for optimizer (default: 0.0009)")
+    parser.add_argument("--train_batch_size", type=int, default=16, help="Batch size for training (default: 32)")
     parser.add_argument("--valid_batch_size", type=int, default=16, help="Batch size for validation (default: 16)")
     parser.add_argument("--test_batch_size", type=int, default=16, help="Batch size for testing (default: 16)")
     parser.add_argument("--num_classes", type=int, default=2, help="Number of classes (including background) (default: 2)")
 
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-    parser.add_argument("--show_ouputs", action="store_true", help="Show example outputs")
+    parser.add_argument("--show_outputs", action="store_true", help="Show example outputs")
     parser.add_argument("--checkpoints", action="store_true", help="Enable Checkpoint Saving")
-
-
-
 
     return parser.parse_args()
 
@@ -88,6 +83,9 @@ def main(args):
     transform = v2.Compose([
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
+        ResizeWithBBoxes(),
+        FlipWithBBoxes(flip_type="vertical", probability=0.35),
+        FlipWithBBoxes(flip_type="horizontal", probability=0.35)
     ])
 
     train_data = VOC(args.train_csv, transform=transform, data_dir=args.data_dir)
@@ -109,7 +107,7 @@ def main(args):
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, args.num_classes)
     model.to(device)
 
-    metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox", iou_thresholds=[0.5])
+    metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",iou_thresholds=[0.2,0.5,0.75])
     metric.to(device)
     
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
@@ -129,15 +127,13 @@ def main(args):
     log("******Restoring Checkpoints******",args.verbose)
     if args.checkpoints:
         checkpoint = load_checkpoints(args.check_point_dir)
-        start_epoch = 0
         if checkpoint is not None:
             try:
                 model.load_state_dict(checkpoint['model_state_dict'])
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
-                start_epoch = checkpoint['epoch'] + 1
                 train_history = checkpoint['train_history']
-                log(f"Restored from last checkpoint...Training from epoch {start_epoch}",args.verbose)
+                log(f"Restored from last checkpoint...Training from epoch {len(train_history["total_train_loss"])}",args.verbose)
             except:
                 print(f"Failed to load from checkpoint...you fucked up")
 
@@ -145,18 +141,30 @@ def main(args):
 
     # Training loop
     log("******Starting Training******", args.verbose)
-    for epoch in tqdm.tqdm(range(args.epochs), desc="Training Progress", unit="epoch"):
+    for epoch in tqdm.tqdm(range(len(train_history["total_train_loss"]),args.epochs), desc="Training Progress", unit="epoch"):
+        
+        args.verbose and tqdm.tqdm.write(f"Epoch {epoch}")
+
         train_loss = train_one_epoch(model, optimizer, train_loader, device, lr_scheduler=lr_scheduler)
         train_history["total_train_loss"].append(float(train_loss))
-        log(f"Training Loss: {train_loss}", args.verbose)
+        args.verbose and tqdm.tqdm.write(f"\tTraining Loss: {train_loss}")
 
         eval_loss = Eval_loss(model, valid_loader, device)
         train_history["eval_loss"].append(float(eval_loss))
-        log(f"Validation Loss: {eval_loss}", args.verbose)
+        args.verbose and tqdm.tqdm.write(f"\tValidation Loss: {eval_loss}")
 
-        mAp = eval_mAP(model, valid_loader, device, metric)
-        train_history["map"].append(float(mAp))
-        log(f"mAP: {mAp}", args.verbose)
+
+        mAP = eval_mAP(model, valid_loader, device, metric)
+        for key, value in mAP.items():
+            if key not in train_history:  
+                train_history[key] = []
+            train_history[key].append(float(value))       
+        
+        args.verbose and tqdm.tqdm.write(f"\tmAP_50: {mAP["map_50"]}")
+
+        with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
+            json.dump(train_history, f)
+
 
         if args.checkpoints and (epoch + 1) % 2 == 0:
             checkpoint = {
@@ -168,11 +176,12 @@ def main(args):
             }
             checkpoint_path = os.path.join(args.check_point_dir, f"checkpoint_epoch_{epoch + 1}.pth")
             torch.save(checkpoint, checkpoint_path)
-            log(f"Model checkpoint saved: {checkpoint_path}", args.verbose)
+            manage_checkpoints(args.check_point_dir,2)
+            args.verbose and tqdm.tqdm.write(f"\tModel checkpoint saved: {checkpoint_path}")
 
-        if args.show_ouputs:
+        if args.show_outputs:
             #save some examples to santity check the work
-            show_examples(model,test_loader,device,"Examples",num_examples=10)
+            show_examples(model,test_loader,device,"Examples",num_examples=5)
             #Plot the training history
             plot_training_history(train_history,"Examples")
 
@@ -182,7 +191,7 @@ def main(args):
     log("******Saving Final Model******", args.verbose)
     train_history["end_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     os.makedirs(args.check_point_dir, exist_ok=True)
-    torch.save(model, os.path.join(args.check_point_dir, "final_model.pth"))
+    torch.save(model, os.path.join(args.check_point_dir, "final_model.sav"))
     with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
         json.dump(train_history, f)
 

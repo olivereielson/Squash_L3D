@@ -1,3 +1,4 @@
+import colorsys
 import math
 import os
 import random
@@ -35,6 +36,11 @@ def plot_training_history(data, save_path):
     plt.plot(epochs, total_train_loss, label="Total Train Loss", marker='o')
     plt.plot(epochs, eval_loss, label="Evaluation Loss", marker='o')
     plt.plot(epochs, map_scores, label="mAP", marker='o')
+    plt.plot(epochs, data["map_50"], label="mAP_50", marker='o')
+    plt.plot(epochs, data["mar_small"], label="mAR_small", marker='o')
+    plt.plot(epochs, data["mar_1"], label="mar_1", marker='o')
+
+
 
     # Customize the plot
     plt.title("Training and Evaluation Loss and mAP over Epochs")
@@ -113,20 +119,6 @@ def load_checkpoints(checkpoint_dir):
 
 
 
-def split_data(data, test_size=0.10, valid_size=0.2, random_state=40):
-    unique_image_paths = data['image_path'].unique()
-    train_paths, temp_paths = train_test_split(unique_image_paths, test_size=(test_size + valid_size),
-                                               random_state=random_state)
-    test_paths, valid_paths = train_test_split(temp_paths, test_size=valid_size / (test_size + valid_size),
-                                               random_state=random_state)
-
-    train_data = data[data['image_path'].isin(train_paths)].copy()
-    test_data = data[data['image_path'].isin(test_paths)].copy()
-    valid_data = data[data['image_path'].isin(valid_paths)].copy()
-
-    return train_data, test_data, valid_data
-
-
 def get_gpu_status():
     if torch.backends.mps.is_available():
         if  torch.backends.mps.is_built():
@@ -151,8 +143,7 @@ def collate_fn(batch):
 
 def eval_mAP(model, dataloader, device, metric):
     model.eval()
-    all_avg_precisions = []
-
+    metric.reset()
     with torch.no_grad():
         for images, targets in dataloader:
             images = list(image.to(device) for image in images)
@@ -165,13 +156,8 @@ def eval_mAP(model, dataloader, device, metric):
             formatted_targets = [{'labels': t['labels'], 'boxes': t['boxes']} for t in targets]
 
             metric.update(formatted_preds, formatted_targets)
-            avg_precision = metric.compute()['map_50']
 
-            all_avg_precisions.append(avg_precision)
-
-    average_mAP = sum(all_avg_precisions) / len(all_avg_precisions)
-
-    return average_mAP
+    return metric.compute()
 
 
 def Eval_loss(model, dataloader, device):
@@ -207,18 +193,31 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
         # check if I was messed something up
         if not math.isfinite(losses.item()):
             print(f"Loss is {losses.item()}, stopping training")
-            print(loss_dict)
+            # print(loss_dict)
             sys.exit(1)
 
         optimizer.zero_grad()
         losses.backward()
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
         optimizer.step()
 
     if lr_scheduler is not None:
         lr_scheduler.step()
 
     return total_loss / len(data_loader)
+
+
+
+def confidence_to_radar_color(confidence):
+    """
+    Map confidence (0 to 1) to a radar-style rainbow color using HSV.
+    - 0 (low confidence): Light Blue
+    - 1 (high confidence): Red
+    """
+    hue = (1 - confidence) * 0.67  # Map confidence to hue (red = 0, light blue ≈ 0.67)
+    r, g, b = colorsys.hsv_to_rgb(hue, 1, 1)  # Convert HSV to RGB
+    return int(r * 255), int(g * 255), int(b * 255)  # Scale to 0-255
+
 
 
 def show_examples(model, dataloader, device,save_path, num_examples=5):
@@ -242,8 +241,9 @@ def show_examples(model, dataloader, device,save_path, num_examples=5):
             t = transforms.ToPILImage()
             image = t(image)
             draw = ImageDraw.Draw(image)
-            for box in boxes:
-                draw.rectangle(box, outline="red", width=3)
+            for box, score in zip(boxes, scores):
+                color = confidence_to_radar_color(score)  # Get RGB color from confidence
+                draw.rectangle(box, outline=color, width=3)
 
             for box in boxes_real:
                 try:

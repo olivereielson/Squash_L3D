@@ -97,21 +97,37 @@ class CourtTransform:
         # print("Boxes:", boxes.tolist())
         # print("Labels:", labels.tolist())
 
-        image = np.array(image)
-        # Apply court color transformation
-        if (labels.tolist() == [label_map["tennis-ball"]]):
-            # print("TRANSFORMING")
-            new_image = self.court_color(image)
-            # Apply line transformation
-            new_image = self.change_lines(image, new_image)
-            # Apply ball transformation for each bounding box
-            # for box, label in zip(boxes.tolist(), labels.tolist()):
+        if isinstance(image, torch.Tensor):  # <-- Change: Handle PyTorch tensor inputs
+            image = image.permute(1, 2, 0).numpy()  # Convert to NumPy for OpenCV
 
-            new_image = self.change_ball(image, new_image, boxes.tolist()[0])
-            return new_image, boxes, labels
+        if labels.tolist() == [label_map["tennis-ball"]]:  # Labels check unchanged
+            transformed_image = self.court_color(image)
+            transformed_image = self.change_lines(image, transformed_image)
+            transformed_image = self.change_ball(image, transformed_image, boxes[0].tolist())
         else:
-            # print("PASSED")
-            return image, boxes, labels
+            transformed_image = image
+
+        # Convert back to PyTorch tensor <-- Change: Ensure Tensor output
+        transformed_image = torch.from_numpy(transformed_image).permute(2, 0, 1).float() / 255.0
+
+        # Return consistent Tuple[Tensor, Tensor, Tensor] <-- Change: Normalize and format output
+        return transformed_image, boxes, labels
+        #
+        # image = np.array(image)
+        # # Apply court color transformation
+        # if (labels.tolist() == [label_map["tennis-ball"]]):
+        #     # print("TRANSFORMING")
+        #     new_image = self.court_color(image)
+        #     # Apply line transformation
+        #     new_image = self.change_lines(image, new_image)
+        #     # Apply ball transformation for each bounding box
+        #     # for box, label in zip(boxes.tolist(), labels.tolist()):
+        #
+        #     new_image = self.change_ball(image, new_image, boxes.tolist()[0])
+        #     return new_image, boxes, labels
+        # else:
+        #     # print("PASSED")
+        #     return image, boxes, labels
 
 label_map = {
     "Squash": 1,

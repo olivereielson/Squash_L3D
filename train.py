@@ -93,8 +93,8 @@ def main(args):
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
         # ResizeWithBBoxes(),
-        FlipWithBBoxes(flip_type="vertical", probability=0.35),
-        FlipWithBBoxes(flip_type="horizontal", probability=0.35)
+        # FlipWithBBoxes(flip_type="vertical", probability=0.35),
+        # FlipWithBBoxes(flip_type="horizontal", probability=0.35)
     ])
 
     train_data = VOC(args.train_csv, transform=transform, data_dir=args.data_dir)

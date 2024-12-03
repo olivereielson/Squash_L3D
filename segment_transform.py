@@ -97,8 +97,9 @@ class CourtTransform:
         # print("Boxes:", boxes.tolist())
         # print("Labels:", labels.tolist())
 
-        if isinstance(image, torch.Tensor):  # <-- Change: Handle PyTorch tensor inputs
-            image = image.permute(1, 2, 0).numpy()  # Convert to NumPy for OpenCV
+        # if isinstance(image, torch.Tensor):  # <-- Change: Handle PyTorch tensor inputs
+        #     image = image.permute(1, 2, 0).numpy()  # Convert to NumPy for OpenCV
+        image = np.array(image)
 
         if labels.tolist() == [label_map["tennis-ball"]]:  # Labels check unchanged
             transformed_image = self.court_color(image)

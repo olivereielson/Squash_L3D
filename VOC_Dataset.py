@@ -222,7 +222,6 @@ class VOC(Dataset):
             image, boxes, labels = self.transform(image, boxes, labels)
 
         iscrowd = torch.zeros((len(labels)), dtype=torch.int64)
-        print(boxes)
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
 
         target = {}

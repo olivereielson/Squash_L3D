@@ -170,6 +170,7 @@ class VOC(Dataset):
         for index, row in df.iterrows():
 
             if row['class'] != "Squash" and row['class'] != "tennis-ball":
+                print(row['class'])
                 self.removed_images.append(row['image_path'])
                 continue
 

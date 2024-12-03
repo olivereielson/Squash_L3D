@@ -63,7 +63,8 @@ class CourtTransform:
         return new_image
 
     def change_ball(self, og_image, new_image, bnd_box):
-        xmin, ymin, xmax, ymax = bnd_box
+        print(bnd_box)
+        xmin, ymin, xmax, ymax = map(int, bnd_box)
         roi = og_image[ymin:ymax, xmin:xmax]
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         height, width, _ = roi.shape
@@ -98,16 +99,18 @@ class CourtTransform:
 
         image = np.array(image)
         # Apply court color transformation
-        if labels.tolist() == label_map["tennis-ball"]:
+        if (labels.tolist() == [label_map["tennis-ball"]]):
+            # print("TRANSFORMING")
             new_image = self.court_color(image)
             # Apply line transformation
             new_image = self.change_lines(image, new_image)
             # Apply ball transformation for each bounding box
             # for box, label in zip(boxes.tolist(), labels.tolist()):
 
-            new_image = self.change_ball(image, new_image, boxes.tolist())
+            new_image = self.change_ball(image, new_image, boxes.tolist()[0])
             return new_image, boxes, labels
         else:
+            # print("PASSED")
             return image, boxes, labels
 
 label_map = {

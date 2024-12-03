@@ -14,13 +14,18 @@ def create_segmented_csv(direc_path, train_path, tennis_path):
 
 
     tennis_images = glob.glob(f"{tennis_path}/*.jpg")
+    relative_paths = [os.path.relpath(path, tennis_path) for path in tennis_images]
+
+    # print(relative_paths)
     generate_csv_from_path_list(tennis_images, f"{tennis_path}/tennis_path.csv")
 
 
     csv1 = pd.read_csv(f"{direc_path}/train.csv")
     csv2 = pd.read_csv(f"{tennis_path}/tennis_path.csv")
     csv2 = csv2[csv2['class'] == 'tennis-ball']
-    # print(csv2.shape)
+    # print(csv2)
+
+    csv2["image_path"] = csv2["image_path"].str.replace(f"{direc_path}/", "", regex=False)
 
     # Combine the two DataFrames by appending rows
     merged_csv = pd.concat([csv1, csv2], ignore_index=True)

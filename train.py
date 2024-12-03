@@ -89,9 +89,9 @@ def main(args):
     # Data preparation
     log("******Preparing Data******", args.verbose)
     transform = v2.Compose([
-        CourtTransform(),
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
+        CourtTransform(),
         ResizeWithBBoxes(),
         FlipWithBBoxes(flip_type="vertical", probability=0.35),
         FlipWithBBoxes(flip_type="horizontal", probability=0.35)

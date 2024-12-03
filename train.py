@@ -89,7 +89,7 @@ def main(args):
     # Data preparation
     log("******Preparing Data******", args.verbose)
     transform = v2.Compose([
-        v2.ToImage(),
+        # v2.ToImage(),
         CourtTransform()
         # v2.ToDtype(torch.float32, scale=True),
         # ResizeWithBBoxes(),

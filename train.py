@@ -92,7 +92,7 @@ def main(args):
         CourtTransform(),
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
-        ResizeWithBBoxes(),
+        # ResizeWithBBoxes(),
         FlipWithBBoxes(flip_type="vertical", probability=0.35),
         FlipWithBBoxes(flip_type="horizontal", probability=0.35)
     ])

@@ -10,7 +10,6 @@ from tqdm import tqdm
 import pandas as pd
 from torchvision.transforms import functional as F
 from torchvision.io import read_image
-from segment_transform import CourtTransform
 
 class RecenterOnBall:
     def __init__(self, crop_size):

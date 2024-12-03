@@ -168,9 +168,8 @@ class VOC(Dataset):
 
         # Iterate through each row and populate images, labels, and boxes
         for index, row in df.iterrows():
-
+            print(row['class'])
             if row['class'] != "Squash" and row['class'] != "tennis-ball":
-                print(row['class'])
                 self.removed_images.append(row['image_path'])
                 continue
 

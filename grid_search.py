@@ -11,6 +11,17 @@ hyperparameter_space = {
     "batch_size":[8,16,32]
 }
 
+# hyperparameter_space = {
+#     "learning_rate": [1],
+#     "step_size": [1,5],
+#     "gamma": [0.9],
+#     "weight_decay": [0.0009],
+#     "epochs": [1],
+#     "batch_size":[16,32]
+# }
+
+
+
 # Generate all combinations of hyperparameters
 param_combinations = list(itertools.product(
     hyperparameter_space["learning_rate"],
@@ -30,53 +41,59 @@ os.makedirs(job_dir, exist_ok=True)
 task_file_path = os.path.join(job_dir, "tasks.txt")
 with open(task_file_path, "w") as task_file:
     for params in param_combinations:
-        learning_rate, step_size, gamma, weight_decay, epochs,batch_size = params
-        task_file.write(f"{learning_rate} {step_size} {gamma} {weight_decay} {epochs} {batch_size}\n")
+        learning_rate, step_size, gamma, weight_decay, epochs, batch_size = params
+        task_file.write(f"{learning_rate} {step_size} {gamma} {weight_decay} {epochs} {batch_size} \n")
 
 # Create a single Slurm script for the job array
 job_script_path = os.path.join(job_dir, "job_array.slurm")
 with open(job_script_path, "w") as job_script:
     job_script.write(f"""#!/usr/bin/env bash
 #SBATCH -n 1
-#SBATCH -t 0-00:20
+#SBATCH -t 0-01:00
 #SBATCH -p gpu
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8000
-#SBATCH -o {job_dir}/log_%A_%a.out
-#SBATCH -e {job_dir}/log_%A_%a.err
 #SBATCH --array=1-{len(param_combinations)}%3
+#SBATCH -o /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.out
+#SBATCH -e /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.err
 
-# Ensure the job directory exists
-mkdir -p {job_dir}
+RESULTS_DIR="/cluster/home/yezzo01/Squash_L3D/Results"
+mkdir -p $RESULTS_DIR
 
-module purge
-module load micromamba  # Ensure micromamba is available as a module
+# Use SLURM_ARRAY_JOB_ID and SLURM_ARRAY_TASK_ID for consistent naming
+UNIQUE_ID="${{RESULTS_DIR}}/${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}"
+mkdir -p $UNIQUE_ID
+
+echo "SLURM_ARRAY_JOB_ID: $SLURM_ARRAY_JOB_ID"
+echo "SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID"
+
+eval "$(micromamba shell hook bash)"
 micromamba activate /cluster/tufts/cs152l3dclass/shared/micromamba/envs/l3d_2024f_cuda_readonly/
+cd /cluster/home/oeiels01/Squash_L3D
 
-# Change to the project directory
-cd Squash_L3D  # Adjust this path as needed
-
-# Get the line corresponding to the current array task ID
+# Retrieve parameters for this task
 TASK=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {task_file_path})
+read learning_rate step_size gamma weight_decay epochs batch_size <<< $TASK
 
-# Parse the task parameters
-read learning_rate step_size gamma weight_decay epochs <<< $TASK
-
-
-UNIQUE_ID="$SLURM_JOB_ID_$SLURM_ARRAY_TASK_ID"
-
-
-# Run the Python training script
+# Run your training
 srun python3 train.py \\
-    --train_csv "train+segmented.csv" \\
+    --train_csv "train+segmented.csv" \\    
     --learning_rate $learning_rate \\
     --step_size $step_size \\
     --gamma $gamma \\
     --weight_decay $weight_decay \\
     --epochs $epochs \\
     --job_id $UNIQUE_ID \\
+    --train_batch_size $batch_size \\
     --verbose
+
+# Move logs into the UNIQUE_ID directory
+mv $RESULTS_DIR/${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out $UNIQUE_ID/log_${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out
+mv $RESULTS_DIR/${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.err $UNIQUE_ID/log_${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.err
 """)
+
+
+
 
 # Submit the job array
 os.system(f"sbatch {job_script_path}")

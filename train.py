@@ -42,10 +42,10 @@ def parse_args():
     # Hyperparameters
     parser.add_argument("--epochs", type=int, default=25, help="Number of epochs to train (default: 25)")
     parser.add_argument("--learning_rate", type=float, default=1, help="Learning rate (default: 0.005)")
-    parser.add_argument("--step_size", type=int, default=5, help="Step size for learning rate scheduler (default: 10)")
+    parser.add_argument("--step_size", type=int, default=1, help="Step size for learning rate scheduler (default: 10)")
     parser.add_argument("--gamma", type=float, default=0.1, help="Gamma for learning rate scheduler (default: 0.9)")
     parser.add_argument("--weight_decay", type=float, default=0.0001, help="Weight decay for optimizer (default: 0.0009)")
-    parser.add_argument("--train_batch_size", type=int, default=16, help="Batch size for training (default: 32)")
+    parser.add_argument("--train_batch_size", type=int, default=8, help="Batch size for training (default: 32)")
     parser.add_argument("--valid_batch_size", type=int, default=16, help="Batch size for validation (default: 16)")
     parser.add_argument("--test_batch_size", type=int, default=16, help="Batch size for testing (default: 16)")
     parser.add_argument("--num_classes", type=int, default=2, help="Number of classes (including background) (default: 2)")
@@ -84,16 +84,16 @@ def main(args):
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
         ResizeWithBBoxes(),
-        FlipWithBBoxes(flip_type="vertical", probability=0.35),
-        FlipWithBBoxes(flip_type="horizontal", probability=0.35)
+        FlipWithBBoxes(flip_type="vertical", probability=0.25),
+        FlipWithBBoxes(flip_type="horizontal", probability=0.25)
     ])
 
     train_data = VOC(args.train_csv, transform=transform, data_dir=args.data_dir)
     valid_data = VOC(args.valid_csv, transform=transform, data_dir=args.data_dir)
     test_data = VOC(args.test_csv, transform=transform, data_dir=args.data_dir)
 
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2)
-    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=args.valid_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2, pin_memory=True)
+    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=args.valid_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.test_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2)
 
     log(f"Train_loader Size = {len(train_loader)}, {len(train_data.removed_images)} images removed", args.verbose)
@@ -181,7 +181,7 @@ def main(args):
 
         if args.show_outputs:
             #save some examples to santity check the work
-            show_examples(model,test_loader,device,"Examples",num_examples=5)
+            show_examples(model,train_loader,device,"Examples",num_examples=5)
             #Plot the training history
             plot_training_history(train_history,"Examples")
 
@@ -190,20 +190,23 @@ def main(args):
     # Save final model and training history
     log("******Saving Final Model******", args.verbose)
     train_history["end_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    os.makedirs(args.check_point_dir, exist_ok=True)
-    torch.save(model, os.path.join(args.check_point_dir, "final_model.sav"))
-    with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
-        json.dump(train_history, f)
+    
 
 
     #save to folder of just past runs 
     if args.job_id is not None:
-        os.makedirs(f"Results/{args.job_id}", exist_ok=True)
-        with open(os.path.join("Results", f"{args.job_id}/train_history.json"), "w") as f:
+        os.makedirs(f"{args.job_id}", exist_ok=True)
+        with open(f"{args.job_id}/train_history.json", "w") as f:
             json.dump(train_history, f)
-        
         #save training history
-        plot_training_history(train_history,f"Results/{args.job_id}")
+        plot_training_history(train_history,f"{args.job_id}")
+
+    else:   
+        os.makedirs(args.check_point_dir, exist_ok=True)
+        torch.save(model, os.path.join(args.check_point_dir, "final_model.sav"))
+        with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
+            json.dump(train_history, f)
+
 
 
     log("******Training Complete******", args.verbose)

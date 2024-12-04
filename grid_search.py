@@ -49,6 +49,13 @@ with open(job_script_path, "w") as job_script:
 # Ensure the job directory exists
 mkdir -p {job_dir}
 
+module purge
+module load micromamba  # Ensure micromamba is available as a module
+micromamba activate /cluster/tufts/cs152l3dclass/shared/micromamba/envs/l3d_2024f_cuda_readonly/
+
+# Change to the project directory
+cd Squash_L3D  # Adjust this path as needed
+
 # Get the line corresponding to the current array task ID
 TASK=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {task_file_path})
 

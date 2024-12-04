@@ -76,8 +76,7 @@ TASK=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {task_file_path})
 read learning_rate step_size gamma weight_decay epochs batch_size <<< $TASK
 
 # Run your training
-srun python3 train.py \\
-    --train_csv "train+segmented.csv" \\    
+srun python3 train.py \\    
     --learning_rate $learning_rate \\
     --step_size $step_size \\
     --gamma $gamma \\
@@ -85,7 +84,8 @@ srun python3 train.py \\
     --epochs $epochs \\
     --job_id $UNIQUE_ID \\
     --train_batch_size $batch_size \\
-    --verbose
+    --verbose \\
+    --train_csv "train+segmented.csv"
 
 # Move logs into the UNIQUE_ID directory
 mv $RESULTS_DIR/${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out $UNIQUE_ID/log_${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out

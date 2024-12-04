@@ -3,11 +3,12 @@ import itertools
 
 # Define the hyperparameter space
 hyperparameter_space = {
-    "learning_rate": [0.001],
-    "step_size": [5, 10,15,20],
-    "gamma": [0.9],
+    "learning_rate": [1,0.1,0.05],
+    "step_size": [1,5,10],
+    "gamma": [0.9,0.1],
     "weight_decay": [0.0009],
-    "epochs": [1],
+    "epochs": [15],
+    "batch_size":[8,16,32]
 }
 
 # Generate all combinations of hyperparameters
@@ -17,6 +18,8 @@ param_combinations = list(itertools.product(
     hyperparameter_space["gamma"],
     hyperparameter_space["weight_decay"],
     hyperparameter_space["epochs"],
+    hyperparameter_space["batch_size"],
+
 ))
 
 # Directory for task file and logs
@@ -27,8 +30,8 @@ os.makedirs(job_dir, exist_ok=True)
 task_file_path = os.path.join(job_dir, "tasks.txt")
 with open(task_file_path, "w") as task_file:
     for params in param_combinations:
-        learning_rate, step_size, gamma, weight_decay, epochs = params
-        task_file.write(f"{learning_rate} {step_size} {gamma} {weight_decay} {epochs}\n")
+        learning_rate, step_size, gamma, weight_decay, epochs,batch_size = params
+        task_file.write(f"{learning_rate} {step_size} {gamma} {weight_decay} {epochs} {batch_size}\n")
 
 # Create a single Slurm script for the job array
 job_script_path = os.path.join(job_dir, "job_array.slurm")
@@ -58,12 +61,14 @@ UNIQUE_ID="$SLURM_JOB_ID_$SLURM_ARRAY_TASK_ID"
 
 # Run the Python training script
 srun python3 train.py \\
+    --train_csv "train+segmented.csv" \\
     --learning_rate $learning_rate \\
     --step_size $step_size \\
     --gamma $gamma \\
     --weight_decay $weight_decay \\
     --epochs $epochs \\
-    --job_id $UNIQUE_ID
+    --job_id $UNIQUE_ID \\
+    --verbose
 """)
 
 # Submit the job array

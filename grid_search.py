@@ -69,7 +69,7 @@ echo "SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID"
 
 eval "$(micromamba shell hook bash)"
 micromamba activate /cluster/tufts/cs152l3dclass/shared/micromamba/envs/l3d_2024f_cuda_readonly/
-cd /cluster/home/oeiels01/Squash_L3D
+cd /cluster/home/yezzo01/Squash_L3D
 
 # Retrieve parameters for this task
 TASK=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {task_file_path})

@@ -204,8 +204,8 @@ def main(args):
 
     # save to folder of just past runs
     if args.job_id is not None:
-        os.makedirs(f"Results/{args.job_id}", exist_ok=True)
-        with open(os.path.join("Results", f"{args.job_id}/train_history.json"), "w") as f:
+        os.makedirs(f"{args.job_id}", exist_ok=True)
+        with open(f"{args.job_id}/train_history.json", "w") as f:
             json.dump(train_history, f)
 
         # save training history

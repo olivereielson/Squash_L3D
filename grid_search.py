@@ -49,7 +49,7 @@ job_script_path = os.path.join(job_dir, "job_array.slurm")
 with open(job_script_path, "w") as job_script:
     job_script.write(f"""#!/usr/bin/env bash
 #SBATCH -n 1
-#SBATCH -t 0-01:00
+#SBATCH -t 0-01:30
 #SBATCH -p gpu
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8000

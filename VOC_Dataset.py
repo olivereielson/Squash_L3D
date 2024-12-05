@@ -194,7 +194,7 @@ class VOC(Dataset):
                 continue
 
             image_path = row['image_path']
-            print(image_path)
+            # print(image_path)
 
             # Store the image and associated data
             self.images.append(image_path)
@@ -210,8 +210,8 @@ class VOC(Dataset):
         image = self.data_dir + "/" + self.images[idx]
         labels = [self.labels[idx]]
         boxes = [self.boxes[idx]]
-        print("GET ITEM:", image)
-        print(labels)
+        # print("GET ITEM:", image)
+        # print(labels)
         # Convert labels to integers
         labels = [label_map[l] for l in labels]
 

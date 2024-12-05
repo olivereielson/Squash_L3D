@@ -105,7 +105,7 @@ class CourtTransform:
         image = np.array(image)
 
         if labels.tolist() == [label_map["tennis-ball"]]:
-            print(labels.tolist())
+            # print(labels.tolist())
             # Labels check unchanged
             transformed_image = self.court_color(image)
             transformed_image = self.change_lines(image, transformed_image)

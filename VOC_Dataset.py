@@ -210,6 +210,7 @@ class VOC(Dataset):
         labels = [self.labels[idx]]
         boxes = [self.boxes[idx]]
         print("GET ITEM:", image)
+        print(labels)
         # Convert labels to integers
         labels = [label_map[l] for l in labels]
 

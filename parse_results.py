@@ -14,8 +14,8 @@ def find_best_map50_results(base_dir):
                     with open(file_path, 'r') as f:
                         data = json.load(f)
                         # Get the maximum mAP_50 value and its index
-                        if "map" in data:
-                            max_map50 = max(data["map"])
+                        if "map_50" in data:
+                            max_map50 = max(data["map_50"])
                             if max_map50 > best_map50:
                                 best_map50 = max_map50
                                 best_hyperparams = data.get("hyperparams", {})

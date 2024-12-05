@@ -72,7 +72,6 @@ class CourtTransform:
         if roi is None or roi.size == 0:
             raise ValueError("Extracted ROI is empty. Check bounding box or image data.")
 
-        print(roi)
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         height, width, _ = roi.shape
 

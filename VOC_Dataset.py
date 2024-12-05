@@ -193,6 +193,7 @@ class VOC(Dataset):
                 continue
 
             image_path = row['image_path']
+            print(image_path)
 
             # Store the image and associated data
             self.images.append(image_path)

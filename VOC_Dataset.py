@@ -165,7 +165,6 @@ class VOC(Dataset):
         assert os.path.exists(self.path), f"CSV {self.path} does not exist"
         # Load the CSV file into a DataFrame
         df = pd.read_csv(self.path)
-        print(self.path)
 
         # Iterate through each row and populate images, labels, and boxes
         for index, row in df.iterrows():

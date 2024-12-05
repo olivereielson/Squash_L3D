@@ -104,7 +104,9 @@ class CourtTransform:
         #     image = image.permute(1, 2, 0).numpy()  # Convert to NumPy for OpenCV
         image = np.array(image)
 
-        if labels.tolist() == [label_map["tennis-ball"]]:  # Labels check unchanged
+        if labels.tolist() == [label_map["tennis-ball"]]:
+            print(labels.tolist())
+            # Labels check unchanged
             transformed_image = self.court_color(image)
             transformed_image = self.change_lines(image, transformed_image)
             transformed_image = self.change_ball(image, transformed_image, boxes[0].tolist())

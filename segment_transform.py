@@ -65,9 +65,14 @@ class CourtTransform:
     def change_ball(self, og_image, new_image, bnd_box):
         # print(bnd_box)
         xmin, ymin, xmax, ymax = map(int, bnd_box)
-        roi = og_image[ymin:ymax, xmin:xmax]
+        if xmin < 0 or ymin < 0 or xmax > og_image.shape[1] or ymax > og_image.shape[0]:
+            raise ValueError("Bounding box coordinates are out of bounds.")
 
-        print(roi.shape)
+        roi = og_image[ymin:ymax, xmin:xmax]
+        if roi is None or roi.size == 0:
+            raise ValueError("Extracted ROI is empty. Check bounding box or image data.")
+
+        print(roi)
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         height, width, _ = roi.shape
 

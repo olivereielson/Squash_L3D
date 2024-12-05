@@ -198,7 +198,7 @@ class VOC(Dataset):
             # Store the image and associated data
             self.images.append(image_path)
             self.labels.append(row['class'])
-            self.boxes.append([row['xmin']-5, row['ymin']-5, row['xmax']+5, row['ymax']+5])
+            self.boxes.append([max(0,row['xmin']-5), max(0,row['ymin']-5), row['xmax']+5, row['ymax']+5])
 
         # print(f"When reading in data {len(self.removed_images)} images were removed")
 

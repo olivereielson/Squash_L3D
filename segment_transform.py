@@ -66,8 +66,8 @@ class CourtTransform:
         # print(bnd_box)
         xmin, ymin, xmax, ymax = map(int, bnd_box)
         roi = og_image[ymin:ymax, xmin:xmax]
-        print(og_image.shape)
-        print(roi)
+        print(og_image)
+        # print(roi)
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         height, width, _ = roi.shape
 

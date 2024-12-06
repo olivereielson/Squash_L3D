@@ -120,6 +120,7 @@ class CourtTransform:
         transformed_image = torch.from_numpy(transformed_image).permute(2, 0, 1).float() / 255.0
 
         # Return consistent Tuple[Tensor, Tensor, Tensor] <-- Change: Normalize and format output
+        print(labels)
         return transformed_image, boxes, labels
         #
         # image = np.array(image)

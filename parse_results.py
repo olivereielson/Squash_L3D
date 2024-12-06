@@ -34,5 +34,5 @@ def find_best_map50_results(base_dir):
 
 if __name__ == "__main__":
     # Replace 'Results-baseline' with the path to your directory
-    base_dir = "Results_squash+segmented"
+    base_dir = "Results"
     find_best_map50_results(base_dir)

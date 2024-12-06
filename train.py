@@ -209,7 +209,7 @@ def main(args):
             json.dump(train_history, f)
 
         # save training history
-        plot_training_history(train_history, f"Results/{args.job_id}")
+        plot_training_history(train_history, f"{args.job_id}")
 
     log("******Training Complete******", args.verbose)
 

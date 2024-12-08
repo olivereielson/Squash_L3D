@@ -14,7 +14,7 @@ from torchvision.models import ResNet50_Weights
 from torchvision.models.optical_flow.raft import ResidualBlock
 from torchvision.transforms import v2
 from torchvision.models.detection import retinanet_resnet50_fpn_v2, RetinaNet_ResNet50_FPN_V2_Weights
-from VOC_Dataset import VOC, FlipWithBBoxes, ResizeWithBBoxes
+from VOC_Dataset import VOC, FlipWithBBoxes, RandomCropWithBBoxes, ResizeWithBBoxes, ResizeWithBBoxesSquare
 from create_CSV import generate_csv
 from train_helper import show_examples, collate_fn, get_gpu_status, train_one_epoch, Eval_loss, eval_mAP
 from train_helper import *
@@ -40,12 +40,12 @@ def parse_args():
     parser.add_argument("--check_point_dir", type=str, default="checkpoints", help="Directory to save checkpoints (default: ./checkpoints)")
     
     # Hyperparameters
-    parser.add_argument("--epochs", type=int, default=25, help="Number of epochs to train (default: 25)")
-    parser.add_argument("--learning_rate", type=float, default=1, help="Learning rate (default: 0.005)")
-    parser.add_argument("--step_size", type=int, default=1, help="Step size for learning rate scheduler (default: 10)")
+    parser.add_argument("--epochs", type=int, default=15, help="Number of epochs to train (default: 25)")
+    parser.add_argument("--learning_rate", type=float, default=0.005, help="Learning rate (default: 0.005)")
+    parser.add_argument("--step_size", type=int, default=10, help="Step size for learning rate scheduler (default: 10)")
     parser.add_argument("--gamma", type=float, default=0.1, help="Gamma for learning rate scheduler (default: 0.9)")
-    parser.add_argument("--weight_decay", type=float, default=0.0001, help="Weight decay for optimizer (default: 0.0009)")
-    parser.add_argument("--train_batch_size", type=int, default=8, help="Batch size for training (default: 32)")
+    parser.add_argument("--weight_decay", type=float, default=0.0005, help="Weight decay for optimizer (default: 0.0009)")
+    parser.add_argument("--train_batch_size", type=int, default=4, help="Batch size for training (default: 8)")
     parser.add_argument("--valid_batch_size", type=int, default=16, help="Batch size for validation (default: 16)")
     parser.add_argument("--test_batch_size", type=int, default=16, help="Batch size for testing (default: 16)")
     parser.add_argument("--num_classes", type=int, default=2, help="Number of classes (including background) (default: 2)")
@@ -84,6 +84,7 @@ def main(args):
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
         ResizeWithBBoxes(),
+        # RandomCropWithBBoxes(probability=0.35),
         FlipWithBBoxes(flip_type="vertical", probability=0.25),
         FlipWithBBoxes(flip_type="horizontal", probability=0.25)
     ])
@@ -93,8 +94,8 @@ def main(args):
     test_data = VOC(args.test_csv, transform=transform, data_dir=args.data_dir)
 
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2, pin_memory=True)
-    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=args.valid_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2, pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.test_batch_size, shuffle=True, collate_fn=collate_fn, num_workers=2)
+    valid_loader = torch.utils.data.DataLoader(valid_data, batch_size=args.valid_batch_size, shuffle=False, collate_fn=collate_fn, num_workers=2, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.test_batch_size, shuffle=False, collate_fn=collate_fn, num_workers=2)
 
     log(f"Train_loader Size = {len(train_loader)}, {len(train_data.removed_images)} images removed", args.verbose)
     log(f"Valid_loader Size = {len(valid_loader)}, {len(valid_data.removed_images)} images removed", args.verbose)
@@ -107,7 +108,8 @@ def main(args):
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, args.num_classes)
     model.to(device)
 
-    metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",iou_thresholds=[0.2,0.5,0.75])
+
+    metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",class_metrics=False,backend="faster_coco_eval")
     metric.to(device)
     
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
@@ -123,6 +125,9 @@ def main(args):
         'job_id' : args.job_id
     }
 
+    #print out the model settings to the terminal 
+    for arg, value in vars(args).items():
+        log(f"{arg}: {value}", args.verbose)
 
     log("******Restoring Checkpoints******",args.verbose)
     if args.checkpoints:
@@ -155,12 +160,27 @@ def main(args):
 
 
         mAP = eval_mAP(model, valid_loader, device, metric)
+        
         for key, value in mAP.items():
             if key not in train_history:  
                 train_history[key] = []
             train_history[key].append(float(value))       
         
+        mAP_train = eval_mAP(model, train_loader, device, metric)
+        
+        for key, value in mAP_train.items():
+            key = f"{key}_train"
+            if key not in train_history:  
+                train_history[key] = []
+            train_history[key].append(float(value))
+
         args.verbose and tqdm.tqdm.write(f"\tmAP_50: {mAP["map_50"]}")
+
+        args.verbose and tqdm.tqdm.write(f"\tmAP_50_train: {mAP_train["map_50"]}")
+
+
+
+
 
         with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
             json.dump(train_history, f)
@@ -176,12 +196,14 @@ def main(args):
             }
             checkpoint_path = os.path.join(args.check_point_dir, f"checkpoint_epoch_{epoch + 1}.pth")
             torch.save(checkpoint, checkpoint_path)
-            manage_checkpoints(args.check_point_dir,2)
+            manage_checkpoints(args.check_point_dir,1)
             args.verbose and tqdm.tqdm.write(f"\tModel checkpoint saved: {checkpoint_path}")
 
         if args.show_outputs:
             #save some examples to santity check the work
-            show_examples(model,train_loader,device,"Examples",num_examples=5)
+            show_examples(model,valid_loader,device,"Examples",num_examples=10)
+            show_examples(model,train_loader,device,"Examples2",num_examples=5)
+
             #Plot the training history
             plot_training_history(train_history,"Examples")
 

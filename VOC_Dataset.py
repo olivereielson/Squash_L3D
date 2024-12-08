@@ -78,6 +78,119 @@ class ResizeWithBBoxes:
 
         return resized_image, resized_boxes, labels
 
+class RandomCropWithBBoxes:
+    def __init__(self, crop_size=(640, 640), resize_size=(640, 640), probability=0.5):
+        """
+        Initializes the random crop and resize transformation.
+
+        Args:
+            crop_size (Tuple[int, int]): Desired crop size as (height, width).
+            resize_size (Tuple[int, int]): Target size after resizing as (height, width).
+            probability (float): Probability of applying the crop/resize transformation.
+        """
+        self.crop_size = crop_size
+        self.resize_size = resize_size
+        self.probability = probability
+
+    def __call__(self, image, boxes, labels):
+        """
+        Applies random cropping and resizing to the image while maintaining valid bounding boxes.
+
+        Args:
+            image (PIL.Image or Tensor): Input image.
+            boxes (Tensor): Bounding boxes in (xmin, ymin, xmax, ymax) format.
+            labels (Tensor): Corresponding labels for the bounding boxes.
+
+        Returns:
+            Tuple[Tensor, Tensor, Tensor]: Transformed image, adjusted bounding boxes, and labels.
+        """
+        if random.random() > self.probability:
+            return image, boxes, labels  # Return unchanged if probability condition not met
+
+        # Get original image size
+        if isinstance(image, Image.Image):
+            original_width, original_height = image.size
+        else:  # Tensor image
+            original_height, original_width = image.shape[-2], image.shape[-1]
+
+        # Randomly choose crop dimensions
+        crop_height, crop_width = self.crop_size
+        crop_height = min(crop_height, original_height)
+        crop_width = min(crop_width, original_width)
+
+        # Randomly select the top-left corner for cropping
+        top = random.randint(0, original_height - crop_height)
+        left = random.randint(0, original_width - crop_width)
+
+        # Crop the image
+        image = F.crop(image, top, left, crop_height, crop_width)
+
+        # Adjust bounding boxes to the new cropped region
+        boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(min=left, max=left + crop_width) - left
+        boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(min=top, max=top + crop_height) - top
+
+        # Filter out invalid boxes (boxes with non-positive width or height)
+        valid_boxes = (boxes[:, 2] > boxes[:, 0]) & (boxes[:, 3] > boxes[:, 1])
+        boxes = boxes[valid_boxes]
+        labels = labels[valid_boxes]
+
+        # Resize the cropped image
+        target_height, target_width = self.resize_size
+        scale_x = target_width / crop_width
+        scale_y = target_height / crop_height
+        image = F.resize(image, size=(target_height, target_width))
+
+        # Scale the bounding boxes
+        boxes[:, [0, 2]] *= scale_x
+        boxes[:, [1, 3]] *= scale_y
+
+        return image, boxes, labels
+
+
+class ResizeWithBBoxesSquare:
+    def __init__(self, target_size=640):
+        """
+        Initializes the square resize transformation.
+
+        Args:
+            target_size (int): The target size (height and width) of the output image.
+        """
+        self.target_size = target_size
+
+    def __call__(self, image, boxes, labels):
+        """
+        Resizes the image to a square of fixed size (e.g., 640x640) 
+        and adjusts bounding boxes accordingly.
+
+        Args:
+            image (PIL.Image or Tensor): Input image.
+            boxes (Tensor): Bounding boxes in (xmin, ymin, xmax, ymax) format, absolute coordinates.
+            labels (Tensor): Corresponding labels for the bounding boxes.
+
+        Returns:
+            Tuple[Tensor, Tensor, Tensor]: Resized square image, adjusted bounding boxes, and unchanged labels.
+        """
+        # Extract original image dimensions
+        if isinstance(image, Image.Image):
+            original_width, original_height = image.size
+        else:
+            original_height, original_width = image.shape[-2], image.shape[-1]
+
+        # Calculate scaling factors for width and height
+        scale_x = self.target_size / original_width
+        scale_y = self.target_size / original_height
+
+        # Resize the image to the target size
+        resized_image = F.resize(image, size=(self.target_size, self.target_size))
+
+        # Adjust bounding boxes
+        resized_boxes = boxes.clone()
+        resized_boxes[:, [0, 2]] *= scale_x  # Scale xmin and xmax
+        resized_boxes[:, [1, 3]] *= scale_y  # Scale ymin and ymax
+
+        return resized_image, resized_boxes, labels
+
+
 
 class FlipWithBBoxes:
     def __init__(self, flip_type="horizontal", probability=1.0):
@@ -153,6 +266,7 @@ class VOC(Dataset):
         self.transform = transform
         
         self.removed_images = []
+        self.increased_size=0
 
         self._readCSV()
 
@@ -189,13 +303,28 @@ class VOC(Dataset):
                 self.removed_images.append(row['image_path'])
                 continue
 
+            
 
             image_path = row['image_path']
+
+            if isinstance(row['image_path'], list):
+                self.removed_images.append(row['image_path'])
+                print(f"{row['image_path']}")
+                continue
 
             # Store the image and associated data
             self.images.append(image_path)
             self.labels.append(row['class'])
-            self.boxes.append([row['xmin'], row['ymin'], row['xmax'], row['ymax']])
+            # self.boxes.append([row['xmin'], row['ymin'], row['xmax'], row['ymax']])
+
+            if "synthetic" not in image_path:
+                self.boxes.append([row['xmin']-5, row['ymin']-5, row['xmax']+5, row['ymax']+5])
+                self.increased_size+=1
+            else:
+                self.boxes.append([row['xmin']-2, row['ymin']-2, row['xmax']+2, row['ymax']+2])
+
+        if  self.increased_size != 0:
+            print(f"Warning made {self.increased_size} boxes larger")
 
         # print(f"When reading in data {len(self.removed_images)} images were removed")
 
@@ -204,7 +333,8 @@ class VOC(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        image = self.data_dir+"/"+self.images[idx]
+        # print(self.data_dir,self.images[idx])
+        image = os.path.join(self.data_dir,self.images[idx])
         labels = [self.labels[idx]]
         boxes = [self.boxes[idx]]
 

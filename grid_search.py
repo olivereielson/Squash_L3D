@@ -1,24 +1,26 @@
 import os
 import itertools
 
-# Define the hyperparameter space
-hyperparameter_space = {
-    "learning_rate": [1,0.1,0.05],
-    "step_size": [1,5,10],
-    "gamma": [0.9,0.1],
-    "weight_decay": [0.0009],
-    "epochs": [15],
-    "batch_size":[8,16,32]
-}
-
+# # Define the hyperparameter space
 # hyperparameter_space = {
-#     "learning_rate": [1],
-#     "step_size": [1,5],
-#     "gamma": [0.9],
+#     "learning_rate": [1,0.1,0.05],
+#     "step_size": [1,5,10],
+#     "gamma": [0.9,0.1],
 #     "weight_decay": [0.0009],
-#     "epochs": [1],
-#     "batch_size":[16,32]
+#     "epochs": [15],
+#     "batch_size":[8,16,32],
+#     "real_size":[0,100,200,300,400,500,600,700,800,900,1000]
 # }
+
+hyperparameter_space = {
+    "learning_rate": [0.001],
+    "step_size": [3],
+    "gamma": [0.9],
+    "weight_decay": [0.001],
+    "epochs": [10],
+    "batch_size":[4],
+    "real_size":[200,400,600,800,1000]
+}
 
 
 
@@ -30,6 +32,7 @@ param_combinations = list(itertools.product(
     hyperparameter_space["weight_decay"],
     hyperparameter_space["epochs"],
     hyperparameter_space["batch_size"],
+    hyperparameter_space["real_size"],
 
 ))
 
@@ -41,15 +44,15 @@ os.makedirs(job_dir, exist_ok=True)
 task_file_path = os.path.join(job_dir, "tasks.txt")
 with open(task_file_path, "w") as task_file:
     for params in param_combinations:
-        learning_rate, step_size, gamma, weight_decay, epochs, batch_size = params
-        task_file.write(f"{learning_rate} {step_size} {gamma} {weight_decay} {epochs} {batch_size} \n")
+        learning_rate, step_size, gamma, weight_decay, epochs, batch_size , real_size= params
+        task_file.write(f"{learning_rate} {step_size} {gamma} {weight_decay} {epochs} {batch_size} {real_size}\n")
 
 # Create a single Slurm script for the job array
 job_script_path = os.path.join(job_dir, "job_array.slurm")
 with open(job_script_path, "w") as job_script:
     job_script.write(f"""#!/usr/bin/env bash
 #SBATCH -n 1
-#SBATCH -t 0-00:20
+#SBATCH -t 0-01:20
 #SBATCH -p gpu
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8000
@@ -73,10 +76,15 @@ cd /cluster/home/oeiels01/Squash_L3D
 
 # Retrieve parameters for this task
 TASK=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {task_file_path})
-read learning_rate step_size gamma weight_decay epochs batch_size <<< $TASK
+read learning_rate step_size gamma weight_decay epochs batch_size real_size <<< $TASK
+
+python3 generate_ratio_csv.py \\
+      --end_row $real_size\\
+      --output_file $UNIQUE_ID/train.csv
 
 # Run your training
 srun python3 train.py \\
+    --train_csv $UNIQUE_ID/train.csv \\
     --learning_rate $learning_rate \\
     --step_size $step_size \\
     --gamma $gamma \\
@@ -85,6 +93,11 @@ srun python3 train.py \\
     --job_id $UNIQUE_ID \\
     --train_batch_size $batch_size \\
     --verbose
+
+    
+# # Remove all .pth files after training is complete  
+# find $UNIQUE_ID -name "*.pth" -type f -delete
+
 
 # Move logs into the UNIQUE_ID directory
 mv $RESULTS_DIR/${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out $UNIQUE_ID/log_${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out

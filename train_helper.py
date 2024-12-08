@@ -144,45 +144,45 @@ def collate_fn(batch):
 def eval_mAP(model, dataloader, device, metric):
     model.eval()
     metric.reset()
+    all_preds = []
+    all_targets = []
     with torch.no_grad():
         for images, targets in dataloader:
-            images = list(image.to(device) for image in images)
+            images = [img.to(device) for img in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
             preds = model(images)
-            preds = [{k: v.to(device) for k, v in t.items()} for t in preds]
+            all_preds.extend([{'labels': p['labels'], 'boxes': p['boxes'], 'scores': p['scores']} for p in preds])
+            all_targets.extend([{'labels': t['labels'], 'boxes': t['boxes']} for t in targets])
 
-            formatted_preds = [{'labels': p['labels'], 'boxes': p['boxes'], 'scores': p['scores']} for p in preds]
-            formatted_targets = [{'labels': t['labels'], 'boxes': t['boxes']} for t in targets]
-
-            metric.update(formatted_preds, formatted_targets)
-
+    metric.update(all_preds, all_targets)
     return metric.compute()
+
 
 
 def Eval_loss(model, dataloader, device):
     total_loss = 0.0
-
-    with torch.no_grad():
+    model.train() # need to take both image and tagets
+    with torch.no_grad(): #we do not upade anything in th model
         for images, targets in dataloader:
-            images = list(image.to(device) for image in images)
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            images = list(image.to(device,non_blocking=True) for image in images)
+            targets = [{k: v.to(device,non_blocking=True) for k, v in t.items()} for t in targets]
+            
             loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
-            total_loss += losses.item()
+            
+            losses = sum(loss.item() for loss in loss_dict.values()) 
+            total_loss += losses
 
     return total_loss / len(dataloader)
 
 
 def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
-    # set model to training mode
 
     model.train()
     total_loss = 0.0
     for images, targets in data_loader:
         # load data onto the GPU
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        images = [image.to(device, non_blocking=True) for image in images]
+        targets = [{k: v.to(device, non_blocking=True) for k, v in t.items()} for t in targets]
         
         # train on data
         loss_dict = model(images, targets)
@@ -193,12 +193,11 @@ def train_one_epoch(model, optimizer, data_loader, device, lr_scheduler):
         # check if I was messed something up
         if not math.isfinite(losses.item()):
             print(f"Loss is {losses.item()}, stopping training")
-            # print(loss_dict)
             sys.exit(1)
 
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         losses.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
         optimizer.step()
 
     if lr_scheduler is not None:
@@ -227,40 +226,40 @@ def show_examples(model, dataloader, device,save_path, num_examples=5):
     model.eval()
     number_shown = 0
     os.makedirs(save_path, exist_ok=True)
-    for images, targets in dataloader:
+    with torch.no_grad():
+        for images, targets in dataloader:
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            predictions = model(images)
 
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        predictions = model(images)
+            for image, prediction, target in zip(images, predictions, targets):
+                boxes = prediction["boxes"].tolist()
+                boxes_real = target["boxes"].tolist()
+                scores = prediction["scores"].tolist()
 
-        for image, prediction, target in zip(images, predictions, targets):
-            boxes = prediction["boxes"].tolist()
-            boxes_real = target["boxes"].tolist()
-            scores = prediction["scores"].tolist()
+                t = transforms.ToPILImage()
+                image = t(image)
+                draw = ImageDraw.Draw(image)
+                for box, score in zip(boxes, scores):
+                    color = confidence_to_radar_color(score)  # Get RGB color from confidence
+                    draw.rectangle(box, outline=color, width=3)
 
-            t = transforms.ToPILImage()
-            image = t(image)
-            draw = ImageDraw.Draw(image)
-            for box, score in zip(boxes, scores):
-                color = confidence_to_radar_color(score)  # Get RGB color from confidence
-                draw.rectangle(box, outline=color, width=3)
+                for box in boxes_real:
+                    try:
+                        draw.rectangle(box, outline="pink", width=3)
+                    except:
+                        print("YOU FUCKED UP BIG TIME... THERE IS BAD DATA IN THE PIPELINE")
+                        print(boxes_real)
+                        print(f"Image number {number_shown}")
 
-            for box in boxes_real:
-                try:
-                    draw.rectangle(box, outline="green", width=3)
-                except:
-                    print("YOU FUCKED UP BIG TIME... THERE IS BAD DATA IN THE PIPELINE")
-                    print(boxes_real)
-                    print(f"Image number {number_shown}")
+                #save the images
+                filename = f"{number_shown}.png"
+                filepath = os.path.join(save_path, filename)
+                image.save(filepath)
 
-            #save the images
-            filename = f"{number_shown}.png"
-            filepath = os.path.join(save_path, filename)
-            image.save(filepath)
-
-            number_shown += 1
-            if number_shown >= num_examples:
-                return
+                number_shown += 1
+                if number_shown >= num_examples:
+                    return
 
 
 

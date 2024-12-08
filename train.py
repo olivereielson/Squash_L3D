@@ -191,7 +191,9 @@ def main(args):
 
         if args.show_outputs:
             # save some examples to santity check the work
-            show_examples(model, test_loader, device, "Examples", num_examples=5)
+            # show_examples(model, test_loader, device, "Examples", num_examples=5)
+            show_examples(model, valid_loader, device, "Examples", num_examples=10)
+            show_examples(model, train_loader, device, "Examples2", num_examples=5)
             # Plot the training history
             plot_training_history(train_history, "Examples")
 

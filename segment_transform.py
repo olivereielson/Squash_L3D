@@ -15,8 +15,8 @@ from torchvision.io import read_image
 
 
 class CourtTransform:
-    def __init__(self, wood_color=[255, 193, 140], line_color=[255, 0, 0], ball_color=[0, 0, 0]):
-        self.wood_color = wood_color
+    def __init__(self, wood_color="/cluster/home/yezzo01/Squash_L3D/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
+        self.wood_color = cv2.imread(wood_color)
         self.line_color = line_color
         self.ball_color = ball_color
 
@@ -49,9 +49,16 @@ class CourtTransform:
         ], dtype=np.uint8)
 
         mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
+
+        resized_texture = cv2.resize(self.wood_color, (width, height), interpolation=cv2.INTER_LINEAR)
+        texture_overlay = np.zeros_like(image)
+        texture_overlay[mask > 0] = resized_texture[mask > 0]
+
         new_image = image.copy()
-        new_image[mask > 0] = self.wood_color
+        # new_image[mask > 0] = self.wood_color
+        new_image[mask > 0] = texture_overlay[mask > 0]
         return new_image
+
 
     def change_lines(self, og_image, new_image):
         hsv_image = cv2.cvtColor(og_image, cv2.COLOR_BGR2HSV)

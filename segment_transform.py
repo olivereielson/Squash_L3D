@@ -100,8 +100,13 @@ class CourtTransform:
         ], dtype=np.uint8)
 
         mask = cv2.inRange(hsv_roi, lower_bound, upper_bound)
+
+        resized_texture = cv2.resize(self.wood_color, (width, height), interpolation=cv2.INTER_LINEAR)
+        texture_overlay = np.zeros_like(og_image)
+        texture_overlay[mask > 0] = resized_texture[mask > 0]
+
         roi[mask > 0] = self.ball_color
-        roi[mask == 0] = self.wood_color
+        roi[mask == 0] = texture_overlay[mask > 0]
         new_image[ymin:ymax, xmin:xmax] = roi
         return new_image
 

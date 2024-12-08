@@ -119,7 +119,8 @@ def main(args):
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, args.num_classes)
     model.to(device)
 
-    metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox", iou_thresholds=[0.2, 0.5, 0.75])
+    # metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox", iou_thresholds=[0.2, 0.5, 0.75])
+    metric = MeanAveragePrecision(box_format='xyxy', iou_type="bbox",class_metrics=False,backend="faster_coco_eval")
     metric.to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)

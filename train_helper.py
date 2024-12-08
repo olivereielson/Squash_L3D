@@ -227,40 +227,41 @@ def show_examples(model, dataloader, device,save_path, num_examples=5):
     model.eval()
     number_shown = 0
     os.makedirs(save_path, exist_ok=True)
-    for images, targets in dataloader:
+    with torch.no_grad():
+        for images, targets in dataloader:
 
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        predictions = model(images)
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            predictions = model(images)
 
-        for image, prediction, target in zip(images, predictions, targets):
-            boxes = prediction["boxes"].tolist()
-            boxes_real = target["boxes"].tolist()
-            scores = prediction["scores"].tolist()
+            for image, prediction, target in zip(images, predictions, targets):
+                boxes = prediction["boxes"].tolist()
+                boxes_real = target["boxes"].tolist()
+                scores = prediction["scores"].tolist()
 
-            t = transforms.ToPILImage()
-            image = t(image)
-            draw = ImageDraw.Draw(image)
-            for box, score in zip(boxes, scores):
-                color = confidence_to_radar_color(score)  # Get RGB color from confidence
-                draw.rectangle(box, outline=color, width=3)
+                t = transforms.ToPILImage()
+                image = t(image)
+                draw = ImageDraw.Draw(image)
+                for box, score in zip(boxes, scores):
+                    color = confidence_to_radar_color(score)  # Get RGB color from confidence
+                    draw.rectangle(box, outline=color, width=3)
 
-            for box in boxes_real:
-                try:
-                    draw.rectangle(box, outline="green", width=3)
-                except:
-                    print("YOU FUCKED UP BIG TIME... THERE IS BAD DATA IN THE PIPELINE")
-                    print(boxes_real)
-                    print(f"Image number {number_shown}")
+                for box in boxes_real:
+                    try:
+                        draw.rectangle(box, outline="green", width=3)
+                    except:
+                        print("YOU FUCKED UP BIG TIME... THERE IS BAD DATA IN THE PIPELINE")
+                        print(boxes_real)
+                        print(f"Image number {number_shown}")
 
-            #save the images
-            filename = f"{number_shown}.png"
-            filepath = os.path.join(save_path, filename)
-            image.save(filepath)
+                #save the images
+                filename = f"{number_shown}.png"
+                filepath = os.path.join(save_path, filename)
+                image.save(filepath)
 
-            number_shown += 1
-            if number_shown >= num_examples:
-                return
+                number_shown += 1
+                if number_shown >= num_examples:
+                    return
 
 
 

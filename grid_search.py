@@ -3,11 +3,11 @@ import itertools
 
 # Define the hyperparameter space
 hyperparameter_space = {
-    "learning_rate": [1,0.1,0.05],
+    "learning_rate": [0.1,0.01, 0.001],
     "step_size": [1,5,10],
     "gamma": [0.9,0.1],
-    "weight_decay": [0.0009],
-    "epochs": [15],
+    "weight_decay": [0.001],
+    "epochs": [20],
     "batch_size":[8,16,32]
 }
 
@@ -85,7 +85,7 @@ srun python3 train.py \\
     --job_id $UNIQUE_ID \\
     --train_batch_size $batch_size \\
     --verbose \\
-    --train_csv "/cluster/tufts/cs152l3dclass/oeiels01/synthetic+segmented.csv"
+    --train_csv "/cluster/tufts/cs152l3dclass/oeiels01/train_tennis.csv"
 
 # Move logs into the UNIQUE_ID directory
 mv $RESULTS_DIR/${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out $UNIQUE_ID/log_${{SLURM_ARRAY_JOB_ID}}_${{SLURM_ARRAY_TASK_ID}}.out

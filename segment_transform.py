@@ -83,31 +83,51 @@ class CourtTransform:
         height, width, _ = roi.shape
 
         x, y = width // 2, height // 2
-        selected_color = hsv_roi[y, x]
-        selected_color = selected_color.astype(int)
-        tolerance = 30
+        center_x = xmin + (xmax - xmin) // 2
+        center_y = ymin + (ymax - ymin) // 2
 
-        lower_bound = np.array([
-            max(0, selected_color[0] - tolerance),
-            max(0, selected_color[1] - tolerance),
-            max(0, selected_color[2] - tolerance)
-        ], dtype=np.uint8)
+        radius = max(int(min(xmax - xmin, ymax - ymin) * 0.40), 1)
+        cv2.circle(og_image, (center_x, center_y), radius, (0, 0, 0), -1, lineType=cv2.LINE_4)  # -1 fills the circle
 
-        upper_bound = np.array([
-            min(180, selected_color[0] + tolerance),
-            min(255, selected_color[1] + tolerance),
-            min(255, selected_color[2] + tolerance)
-        ], dtype=np.uint8)
+        roi_size = 10
+        width, height = og_image.shape[:2]
 
-        mask = cv2.inRange(hsv_roi, lower_bound, upper_bound)
+        x_start = max(center_x - roi_size, 0)
+        x_end = min(center_x + roi_size, width)
+        y_start = max(center_y - roi_size, 0)
+        y_end = min(center_y + roi_size, height)
 
-        resized_texture = cv2.resize(self.wood_color, (width, height), interpolation=cv2.INTER_LINEAR)
-        texture_overlay = np.zeros_like(roi)
-        texture_overlay[mask > 0] = resized_texture[mask > 0]
+        circle_roi = og_image[y_start:y_end, x_start:x_end]
+        circle_roi_blurred = cv2.GaussianBlur(circle_roi, (5, 5), 0)
 
-        roi[mask > 0] = self.ball_color
-        roi[mask == 0] = texture_overlay[mask > 0]
-        new_image[ymin:ymax, xmin:xmax] = roi
+        # Replace the original ROI with the blurred version
+        new_image[y_start:y_end, x_start:x_end] = circle_roi_blurred
+
+        # selected_color = hsv_roi[y, x]
+        # selected_color = selected_color.astype(int)
+        # tolerance = 30
+        #
+        # lower_bound = np.array([
+        #     max(0, selected_color[0] - tolerance),
+        #     max(0, selected_color[1] - tolerance),
+        #     max(0, selected_color[2] - tolerance)
+        # ], dtype=np.uint8)
+        #
+        # upper_bound = np.array([
+        #     min(180, selected_color[0] + tolerance),
+        #     min(255, selected_color[1] + tolerance),
+        #     min(255, selected_color[2] + tolerance)
+        # ], dtype=np.uint8)
+        #
+        # mask = cv2.inRange(hsv_roi, lower_bound, upper_bound)
+        #
+        # resized_texture = cv2.resize(self.wood_color, (width, height), interpolation=cv2.INTER_LINEAR)
+        # texture_overlay = np.zeros_like(roi)
+        # texture_overlay[mask > 0] = resized_texture[mask > 0]
+        #
+        # roi[mask > 0] = self.ball_color
+        # # roi[mask == 0] = texture_overlay[mask > 0]
+        # new_image[ymin:ymax, xmin:xmax] = roi
         return new_image
 
     def __call__(self, image, boxes, labels):

@@ -101,7 +101,7 @@ class CourtTransform:
         y_end = min(center_y + roi_size, height)
 
         circle_roi = new_image[y_start:y_end, x_start:x_end]
-        circle_roi_blurred = cv2.GaussianBlur(circle_roi, (5, 5), 0)
+        circle_roi_blurred = cv2.GaussianBlur(circle_roi, (3, 3), 0)
 
         # Replace the original ROI with the blurred version
         new_image[y_start:y_end, x_start:x_end] = circle_roi_blurred

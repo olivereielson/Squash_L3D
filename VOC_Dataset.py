@@ -200,7 +200,7 @@ class VOC(Dataset):
             self.labels.append(row['class'])
             pad = 5
             if "tennis" in image_path:
-                pad = 2
+                pad = 0
             self.boxes.append([max(0,row['xmin']-pad), max(0,row['ymin']-pad), row['xmax']+pad, row['ymax']+pad])
 
         # print(f"When reading in data {len(self.removed_images)} images were removed")

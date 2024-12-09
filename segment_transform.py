@@ -21,7 +21,7 @@ class CourtTransform:
         self.ball_color = ball_color
 
     def court_color(self, image):
-        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
         height, width, _ = image.shape
 
         a, b, c = [], [], []
@@ -62,7 +62,7 @@ class CourtTransform:
 
 
     def change_lines(self, og_image, new_image):
-        hsv_image = cv2.cvtColor(og_image, cv2.COLOR_BGR2HSV)
+        hsv_image = cv2.cvtColor(og_image, cv2.COLOR_RGB2HSV)
         lower_white = np.array([0, 0, 200], dtype=np.uint8)
         upper_white = np.array([180, 120, 255], dtype=np.uint8)
 
@@ -80,7 +80,7 @@ class CourtTransform:
         if roi is None or roi.size == 0:
             raise ValueError("Extracted ROI is empty. Check bounding box or image data.")
 
-        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_RGB2HSV)
         # height, width, _ = roi.shape
 
         # x, y = width // 2, height // 2

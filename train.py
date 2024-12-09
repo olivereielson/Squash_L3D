@@ -173,6 +173,16 @@ def main(args):
 
         args.verbose and tqdm.tqdm.write(f"\tmAP_50: {mAP["map_50"]}")
 
+        mAP_train = eval_mAP(model, train_loader, device, metric)
+
+        for key, value in mAP_train.items():
+            key = f"{key}_train"
+            if key not in train_history:
+                train_history[key] = []
+            train_history[key].append(float(value))
+
+        args.verbose and tqdm.tqdm.write(f"\tmAP_50_train: {mAP_train["map_50"]}")
+
         with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
             json.dump(train_history, f)
 

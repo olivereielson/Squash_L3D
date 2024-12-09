@@ -20,7 +20,7 @@ hyperparameter_space = {
     "weight_decay": [0.001],
     "epochs": [20],
     "batch_size":[4],
-    "real_size":[200]
+    "real_size":[0, 200, 400]
 }
 
 

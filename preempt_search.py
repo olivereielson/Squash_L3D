@@ -57,12 +57,12 @@ with open(job_script_path, "w") as job_script:
 #SBATCH --mem=8000
 #SBATCH --signal=B:SIGUSR1@30
 #SBATCH --array=1-{len(param_combinations)}%3
-#SBATCH -o /cluster/home/oeiels01/Squash_L3D/Results/%A_%a.out
-#SBATCH -e /cluster/home/oeiels01/Squash_L3D/Results/%A_%a.err
+#SBATCH -o /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.out
+#SBATCH -e /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.err
 #SBATCH --requeue
 
 
-RESULTS_DIR="/cluster/home/oeiels01/Squash_L3D/Results"
+RESULTS_DIR="/cluster/home/yezzo01/Squash_L3D/Results"
 mkdir -p $RESULTS_DIR
 
 # Use SLURM_ARRAY_JOB_ID and SLURM_ARRAY_TASK_ID for consistent naming

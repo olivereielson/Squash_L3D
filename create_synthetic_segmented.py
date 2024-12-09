@@ -20,7 +20,7 @@ def create_segmented_csv(direc_path):
     # generate_csv_from_path_list(tennis_images, f"{tennis_path}/tennis_path.csv")
 
 
-    csv1 = pd.read_csv(f"{direc_path}/synthetic.csv")
+    csv1 = pd.read_csv(f"{direc_path}/train.csv")
     csv2 = pd.read_csv(f"{direc_path}/train_tennis.csv")
     # csv2 = csv2[csv2['class'] == 'tennis-ball']
     # print(csv2)
@@ -29,7 +29,7 @@ def create_segmented_csv(direc_path):
 
     # Combine the two DataFrames by appending rows
     merged_csv = pd.concat([csv1, csv2], ignore_index=True)
-    merged_csv.to_csv(f"{direc_path}/synthetic+segmented.csv", index=False)
+    merged_csv.to_csv(f"{direc_path}/train+segmented.csv", index=False)
 
     return merged_csv
 

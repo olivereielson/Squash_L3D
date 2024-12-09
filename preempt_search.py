@@ -14,13 +14,13 @@ import itertools
 # }
 
 hyperparameter_space = {
-    "learning_rate": [0.02],
+    "learning_rate": [0.03],
     "step_size": [1],
     "gamma": [0.1],
     "weight_decay": [0.001],
     "epochs": [20],
     "batch_size":[4],
-    "real_size":[0, 200, 400]
+    "real_size":[0, 200, 800, 1200]
 }
 
 

@@ -176,7 +176,8 @@ def main(args):
         with open(os.path.join(args.check_point_dir, "train_history.json"), "w") as f:
             json.dump(train_history, f)
 
-        if args.checkpoints and (epoch + 1) % 2 == 0:
+        # if args.checkpoints and (epoch + 1) % 2 == 0:
+            if args.checkpoints:
             checkpoint = {
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),

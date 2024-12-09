@@ -16,7 +16,9 @@ from torchvision.io import read_image
 
 class CourtTransform:
     def __init__(self, wood_color="/cluster/home/yezzo01/Squash_L3D/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
+
         self.wood_color = cv2.imread(wood_color)
+        self.wood_color = cv2.cvtColor(self.wood_color, cv2.COLOR_RGB2BGR)
         self.line_color = line_color
         self.ball_color = ball_color
 
@@ -87,7 +89,7 @@ class CourtTransform:
         center_x = xmin + (xmax - xmin) // 2
         center_y = ymin + (ymax - ymin) // 2
 
-        radius = max(int(min(xmax - xmin, ymax - ymin) * 0.40), 1)
+        radius = max(int(min(xmax - xmin, ymax - ymin) * 0.20), 1)
         cv2.circle(new_image, (center_x, center_y), radius, (0, 0, 0), -1, lineType=cv2.LINE_4)  # -1 fills the circle
 
         roi_size = 10

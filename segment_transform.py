@@ -87,17 +87,17 @@ class CourtTransform:
         center_y = ymin + (ymax - ymin) // 2
 
         radius = max(int(min(xmax - xmin, ymax - ymin) * 0.40), 1)
-        cv2.circle(og_image, (center_x, center_y), radius, (0, 0, 0), -1, lineType=cv2.LINE_4)  # -1 fills the circle
+        cv2.circle(new_image, (center_x, center_y), radius, (0, 0, 0), -1, lineType=cv2.LINE_4)  # -1 fills the circle
 
         roi_size = 10
-        width, height = og_image.shape[:2]
+        width, height = new_image.shape[:2]
 
         x_start = max(center_x - roi_size, 0)
         x_end = min(center_x + roi_size, width)
         y_start = max(center_y - roi_size, 0)
         y_end = min(center_y + roi_size, height)
 
-        circle_roi = og_image[y_start:y_end, x_start:x_end]
+        circle_roi = new_image[y_start:y_end, x_start:x_end]
         circle_roi_blurred = cv2.GaussianBlur(circle_roi, (5, 5), 0)
 
         # Replace the original ROI with the blurred version

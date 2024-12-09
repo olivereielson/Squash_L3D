@@ -2,15 +2,23 @@ import os
 import itertools
 
 # Define the hyperparameter space
+# hyperparameter_space = {
+#     "learning_rate": [0.1,0.01, 0.001],
+#     "step_size": [1,5,10],
+#     "gamma": [0.9,0.1],
+#     "weight_decay": [0.001],
+#     "epochs": [20],
+#     "batch_size":[8,16,32]
+# }
 hyperparameter_space = {
-    "learning_rate": [0.1,0.01, 0.001],
-    "step_size": [1,5,10],
-    "gamma": [0.9,0.1],
+    "learning_rate": [0.001],
+    "step_size": [3],
+    "gamma": [0.9],
     "weight_decay": [0.001],
-    "epochs": [20],
-    "batch_size":[8,16,32]
+    "epochs": [15],
+    "batch_size":[4],
+    "real_size":[200,400,600,800,1000]
 }
-
 # hyperparameter_space = {
 #     "learning_rate": [1],
 #     "step_size": [1,5],

@@ -80,9 +80,9 @@ class CourtTransform:
             raise ValueError("Extracted ROI is empty. Check bounding box or image data.")
 
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        height, width, _ = roi.shape
+        # height, width, _ = roi.shape
 
-        x, y = width // 2, height // 2
+        # x, y = width // 2, height // 2
         center_x = xmin + (xmax - xmin) // 2
         center_y = ymin + (ymax - ymin) // 2
 
@@ -90,7 +90,7 @@ class CourtTransform:
         cv2.circle(new_image, (center_x, center_y), radius, (0, 0, 0), -1, lineType=cv2.LINE_4)  # -1 fills the circle
 
         roi_size = 10
-        width, height = new_image.shape[:2]
+        height, width, _ = new_image.shape
 
         x_start = max(center_x - roi_size, 0)
         x_end = min(center_x + roi_size, width)

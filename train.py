@@ -177,7 +177,7 @@ def main(args):
             json.dump(train_history, f)
 
         # if args.checkpoints and (epoch + 1) % 2 == 0:
-            if args.checkpoints:
+        if args.checkpoint:
             checkpoint = {
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),

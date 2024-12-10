@@ -56,7 +56,7 @@ with open(job_script_path, "w") as job_script:
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8000
 #SBATCH --signal=B:SIGUSR1@30
-#SBATCH --array=1-{len(param_combinations)}%3
+#SBATCH --array=1-{len(param_combinations)}%9
 #SBATCH -o /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.out
 #SBATCH -e /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.err
 #SBATCH --requeue

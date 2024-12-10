@@ -134,8 +134,6 @@ class CourtTransform:
     def change_ball(self, og_image, new_image, bnd_box):
         # print(bnd_box)
         xmin, ymin, xmax, ymax = map(int, bnd_box)
-        print(xmin, ymin, xmax, ymax)
-        print(og_image.shape)
         if xmin < 0 or ymin < 0 or xmax > og_image.shape[1] or ymax > og_image.shape[0]:
             raise ValueError("Bounding box coordinates are out of bounds.")
 

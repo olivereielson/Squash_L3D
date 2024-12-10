@@ -16,6 +16,7 @@ from torchvision.io import read_image
 
 class CourtTransform:
     def __init__(self, wood_color="/cluster/home/yezzo01/Squash_L3D/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
+    # def __init__(self, wood_color="/Users/youssefezzo/Desktop/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
 
         self.wood_color = cv2.imread(wood_color)
         self.wood_color = cv2.cvtColor(self.wood_color, cv2.COLOR_RGB2BGR)
@@ -61,7 +62,7 @@ class CourtTransform:
         new_image = image.copy()
         # new_image[mask > 0] = self.wood_color
         new_image[mask > 0] = texture_overlay[mask > 0]
-        return return_img
+        return new_image
 
 
     def change_lines(self, og_image, new_image):
@@ -72,6 +73,40 @@ class CourtTransform:
         mask = cv2.inRange(hsv_image, lower_white, upper_white)
         new_image[mask > 0] = self.line_color
         return new_image
+
+    def inpaint_out_of_place_blobs(self, image, min_area=1, max_area=200):
+        # Convert to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        # Apply thresholding to create a binary image
+        _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+
+        # Setup SimpleBlobDetector parameters
+        params = cv2.SimpleBlobDetector_Params()
+        params.filterByArea = True
+        params.minArea = min_area
+        params.maxArea = max_area
+        params.filterByCircularity = False
+        params.filterByInertia = False
+        params.filterByConvexity = False
+
+        # Create a blob detector with the parameters
+        detector = cv2.SimpleBlobDetector_create(params)
+
+        # Detect blobs
+        keypoints = detector.detect(binary)
+
+        # Create a mask for the blobs
+        mask = np.zeros_like(gray, dtype=np.uint8)
+        for keypoint in keypoints:
+            x, y = int(keypoint.pt[0]), int(keypoint.pt[1])
+            radius = int(keypoint.size / 2)
+            cv2.circle(mask, (x, y), radius, 255, thickness=-1)
+
+        # Inpaint the detected blobs
+        inpainted_image = cv2.inpaint(image, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+
+        return inpainted_image
 
     def change_ball(self, og_image, new_image, bnd_box):
         # print(bnd_box)
@@ -148,6 +183,8 @@ class CourtTransform:
             # Labels check unchanged
             transformed_image = self.court_color(image)
             transformed_image = self.change_lines(image, transformed_image)
+    
+            transformed_image = self.inpaint_out_of_place_blobs(transformed_image)
             transformed_image = self.change_ball(image, transformed_image, boxes[0].tolist())
         else:
             transformed_image = image

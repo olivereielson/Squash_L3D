@@ -53,6 +53,7 @@ class CourtTransform:
         mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
 
         resized_texture = cv2.resize(self.wood_color, (width, height), interpolation=cv2.INTER_AREA)
+        return_img= resized_texture.copy()
 
         texture_overlay = np.zeros_like(image)
         texture_overlay[mask > 0] = resized_texture[mask > 0]
@@ -60,7 +61,7 @@ class CourtTransform:
         new_image = image.copy()
         # new_image[mask > 0] = self.wood_color
         new_image[mask > 0] = texture_overlay[mask > 0]
-        return new_image
+        return return_img
 
 
     def change_lines(self, og_image, new_image):

@@ -125,7 +125,7 @@ class CourtTransform:
         center_x = xmin + (xmax - xmin) // 2
         center_y = ymin + (ymax - ymin) // 2
 
-        radius = max(int(min(xmax - xmin, ymax - ymin) * 0.50), 1)
+        radius = max(int(min(xmax - xmin, ymax - ymin) * 0.40), 1)
         cv2.circle(new_image, (center_x, center_y), radius, (0, 0, 0), -1, lineType=cv2.LINE_4)  # -1 fills the circle
 
         roi_size = 10

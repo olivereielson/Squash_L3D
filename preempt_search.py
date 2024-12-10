@@ -18,9 +18,9 @@ hyperparameter_space = {
     "step_size": [1],
     "gamma": [0.1],
     "weight_decay": [0.001],
-    "epochs": [20],
+    "epochs": [10],
     "batch_size":[4],
-    "real_size":[0, 200, 800, 1200]
+    "real_size":[0, 100, 200, 400, 600, 800, 1000, 1200, 1400]
 }
 
 
@@ -56,7 +56,7 @@ with open(job_script_path, "w") as job_script:
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8000
 #SBATCH --signal=B:SIGUSR1@30
-#SBATCH --array=1-{len(param_combinations)}
+#SBATCH --array=1-{len(param_combinations)}%3
 #SBATCH -o /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.out
 #SBATCH -e /cluster/home/yezzo01/Squash_L3D/Results/%A_%a.err
 #SBATCH --requeue

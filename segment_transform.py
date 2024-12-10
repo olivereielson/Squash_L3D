@@ -15,8 +15,8 @@ from torchvision.io import read_image
 
 
 class CourtTransform:
-    def __init__(self, wood_color="/cluster/home/yezzo01/Squash_L3D/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
-    # def __init__(self, wood_color="/Users/youssefezzo/Desktop/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
+    # def __init__(self, wood_color="/cluster/home/yezzo01/Squash_L3D/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
+    def __init__(self, wood_color="/Users/youssefezzo/Desktop/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
 
         self.wood_color = cv2.imread(wood_color)
         self.wood_color = cv2.cvtColor(self.wood_color, cv2.COLOR_RGB2BGR)
@@ -26,6 +26,16 @@ class CourtTransform:
     def court_color(self, image):
         hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
         height, width, _ = image.shape
+
+        # height, width, _ = image.shape
+
+        # Select a region of interest (ROI) for the court floor
+        # top = int(0.2 * height)  # Remove 20% from the top
+        # bottom = int(0.8 * height)  # Keep 80% of the height
+        # left = int(0.2 * width)  # Remove 20% from the left
+        # right = int(0.8 * width)  # Keep 80% of the width
+        #
+        # image = image[top:bottom, left:right]
 
         a, b, c = [], [], []
         for j in range(-20, 20):
@@ -52,6 +62,19 @@ class CourtTransform:
         ], dtype=np.uint8)
 
         mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
+
+        # Remove noise using morphological operations
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))  # Elliptical kernel
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)  # Remove small noise
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)  # Fill small holes
+
+        # Optional: Filter by connected components to remove tiny blobs
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=4)
+        min_area = 1000  # Minimum area to keep
+        cleaned_mask = np.zeros_like(mask)
+        for i in range(1, num_labels):  # Skip the background (label 0)
+            if stats[i, cv2.CC_STAT_AREA] >= min_area:
+                cleaned_mask[labels == i] = 255
 
         resized_texture = cv2.resize(self.wood_color, (width, height), interpolation=cv2.INTER_AREA)
         return_img= resized_texture.copy()
@@ -111,6 +134,8 @@ class CourtTransform:
     def change_ball(self, og_image, new_image, bnd_box):
         # print(bnd_box)
         xmin, ymin, xmax, ymax = map(int, bnd_box)
+        print(xmin, ymin, xmax, ymax)
+        print(og_image.shape)
         if xmin < 0 or ymin < 0 or xmax > og_image.shape[1] or ymax > og_image.shape[0]:
             raise ValueError("Bounding box coordinates are out of bounds.")
 
@@ -125,7 +150,7 @@ class CourtTransform:
         center_x = xmin + (xmax - xmin) // 2
         center_y = ymin + (ymax - ymin) // 2
 
-        radius = max(int(min(xmax - xmin, ymax - ymin) * 0.40), 1)
+        radius = max(int(min(xmax - xmin, ymax - ymin) * 0.30), 1)
         cv2.circle(new_image, (center_x, center_y), radius, (0, 0, 0), -1, lineType=cv2.LINE_4)  # -1 fills the circle
 
         roi_size = 10
@@ -142,31 +167,6 @@ class CourtTransform:
         # Replace the original ROI with the blurred version
         new_image[y_start:y_end, x_start:x_end] = circle_roi_blurred
 
-        # selected_color = hsv_roi[y, x]
-        # selected_color = selected_color.astype(int)
-        # tolerance = 30
-        #
-        # lower_bound = np.array([
-        #     max(0, selected_color[0] - tolerance),
-        #     max(0, selected_color[1] - tolerance),
-        #     max(0, selected_color[2] - tolerance)
-        # ], dtype=np.uint8)
-        #
-        # upper_bound = np.array([
-        #     min(180, selected_color[0] + tolerance),
-        #     min(255, selected_color[1] + tolerance),
-        #     min(255, selected_color[2] + tolerance)
-        # ], dtype=np.uint8)
-        #
-        # mask = cv2.inRange(hsv_roi, lower_bound, upper_bound)
-        #
-        # resized_texture = cv2.resize(self.wood_color, (width, height), interpolation=cv2.INTER_LINEAR)
-        # texture_overlay = np.zeros_like(roi)
-        # texture_overlay[mask > 0] = resized_texture[mask > 0]
-        #
-        # roi[mask > 0] = self.ball_color
-        # # roi[mask == 0] = texture_overlay[mask > 0]
-        # new_image[ymin:ymax, xmin:xmax] = roi
         return new_image
 
     def __call__(self, image, boxes, labels):
@@ -179,18 +179,49 @@ class CourtTransform:
         image = np.array(image)
 
         if labels.tolist() == [label_map["tennis-ball"]]:
+            height, width, _ = image.shape
+            top = int(0.2 * height)  # Remove 20% from the top
+            bottom = int(0.8 * height)  # Keep 80% of the height
+            left = int(0.2 * width)  # Remove 20% from the left
+            right = int(0.8 * width)
+
+
+            cropped_image = image[top:bottom, left:right]
+            cropped_height, cropped_width, _ = cropped_image.shape
+            adjusted_boxes = []
+            # for box in boxes:
+            box = boxes[0].tolist()
+            xmin, ymin, xmax, ymax = map(int, box)
+                # Adjust the coordinates based on crop offsets
+            new_xmin = xmin - left
+            new_ymin = ymin - top
+            new_xmax = xmax - left
+            new_ymax = ymax - top
+
+            if (new_xmin < 0 or new_ymin < 0 or xmax > cropped_width or ymax > cropped_height):
+                transformed_image = self.court_color(image)
+                transformed_image = self.change_lines(image, transformed_image)
+
+                transformed_image = self.inpaint_out_of_place_blobs(transformed_image)
+                transformed_image = self.change_ball(image, transformed_image, boxes[0].tolist())
+            else:
+                # Ignore invalid boxes (completely outside the cropped region)
+                adjusted_boxes.append([new_xmin, new_ymin, new_xmax, new_ymax])
+
             # print(labels.tolist())
             # Labels check unchanged
-            transformed_image = self.court_color(image)
-            transformed_image = self.change_lines(image, transformed_image)
+                transformed_image = self.court_color(cropped_image)
+                transformed_image = self.change_lines(cropped_image, transformed_image)
     
-            transformed_image = self.inpaint_out_of_place_blobs(transformed_image)
-            transformed_image = self.change_ball(image, transformed_image, boxes[0].tolist())
+                # transformed_image = self.inpaint_out_of_place_blobs(transformed_image)
+                transformed_image = self.change_ball(cropped_image, transformed_image, adjusted_boxes[0])
+                adjusted_boxes = torch.tensor(adjusted_boxes, dtype=torch.float32)
+                boxes = adjusted_boxes
         else:
             transformed_image = image
 
         # Convert back to PyTorch tensor <-- Change: Ensure Tensor output
-        transformed_image = torch.from_numpy(transformed_image).permute(2, 0, 1).float() / 255.0
+        # transformed_image = torch.from_numpy(transformed_image).permute(2, 0, 1).float() / 255.0
 
         # Return consistent Tuple[Tensor, Tensor, Tensor] <-- Change: Normalize and format output
         labels = torch.tensor([1])

@@ -20,7 +20,7 @@ hyperparameter_space = {
     "weight_decay": [0.001],
     "epochs": [10],
     "batch_size":[4],
-    "real_size":[4000]
+    "real_size":[0, 100, 200, 400, 600, 800, 1000, 1200, 1400]
 }
 
 
@@ -86,8 +86,7 @@ python3 generate_ratio_csv.py \\
       --end_row $real_size\\
       --output_file $UNIQUE_ID/train.csv\\
       --file2 /cluster/tufts/cs152l3dclass/oeiels01/train_tennis.csv\\
-      --file1 /cluster/tufts/cs152l3dclass/oeiels01/super_train.csv
-
+      
 # Run your training
 srun python3 train.py \\
     --train_csv $UNIQUE_ID/train.csv \\

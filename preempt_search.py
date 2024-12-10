@@ -14,7 +14,7 @@ import itertools
 # }
 
 hyperparameter_space = {
-    "learning_rate": [0.008],
+    "learning_rate": [0.01],
     "step_size": [1],
     "gamma": [0.1],
     "weight_decay": [0.001],

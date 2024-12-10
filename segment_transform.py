@@ -15,8 +15,8 @@ from torchvision.io import read_image
 
 
 class CourtTransform:
-    # def __init__(self, wood_color="/cluster/home/yezzo01/Squash_L3D/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
-    def __init__(self, wood_color="/Users/youssefezzo/Desktop/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
+    def __init__(self, wood_color="/cluster/home/yezzo01/Squash_L3D/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
+    # def __init__(self, wood_color="/Users/youssefezzo/Desktop/squash_floor.jpg", line_color=[255, 0, 0], ball_color=[0, 0, 0]):
 
         self.wood_color = cv2.imread(wood_color)
         self.wood_color = cv2.cvtColor(self.wood_color, cv2.COLOR_RGB2BGR)
@@ -221,7 +221,7 @@ class CourtTransform:
             transformed_image = image
 
         # Convert back to PyTorch tensor <-- Change: Ensure Tensor output
-        # transformed_image = torch.from_numpy(transformed_image).permute(2, 0, 1).float() / 255.0
+        transformed_image = torch.from_numpy(transformed_image).permute(2, 0, 1).float() / 255.0
 
         # Return consistent Tuple[Tensor, Tensor, Tensor] <-- Change: Normalize and format output
         labels = torch.tensor([1])

@@ -85,7 +85,7 @@ echo $real_size
 python3 generate_ratio_csv.py \\
       --end_row $real_size\\
       --output_file $UNIQUE_ID/train.csv\\
-      --file2 /cluster/tufts/cs152l3dclass/oeiels01/train_tennis.csv\\
+      --file2 /cluster/tufts/cs152l3dclass/oeiels01/synthetic+segmented.csv\\
       --file1 /cluster/tufts/cs152l3dclass/oeiels01/super_train.csv
       
 # Run your training

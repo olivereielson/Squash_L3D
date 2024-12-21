@@ -1,6 +1,4 @@
 # Domain Transfer for Object Detection Models  
-**Final Report for [CS 152 L3D at Tufts in Fall '24](https://www.cs.tufts.edu/cs/152L3D/2024f)**  
-**Instructors can share this report to future students of similar classes**  
 Oliver Eielson and Youssef Ezzo
 
 ---

@@ -82,8 +82,8 @@ Once the steps were complete, the entire transformation was added to a PyTorch d
 Below is an example of this transformation:
 
 <div style="text-align: center;">
-<img src="Screenshot 2024-12-14 at 9.26.52 PM.png" alt="Original Tennis Image" width="40%" style="margin-right: 2em;" />
-<img src="Screenshot 2024-12-17 at 6.16.38 PM.png" alt="Color Segmented Image" width="40%" />
+<img src="Images/Screenshot 2024-12-14 at 9.26.52 PM.png" alt="Original Tennis Image" width="40%" style="margin-right: 2em;" />
+<img src="Images/Screenshot 2024-12-17 at 6.16.38 PM.png" alt="Color Segmented Image" width="40%" />
 </div>
 
 **Figure 2**: Example of Color Segmentation Generated Image
@@ -99,8 +99,8 @@ The dataset comprises labeled images from YouTube match streams stored in Pascal
 Each image has at most one bounding box describing the ball's location in the image. Notably, the camera is placed so it shows the entire court, meaning the ball is very small in every image. No image has a bounding box with a dimension over 100 pixels. While the size of each image is not constant, they are all around 1500×600 pixels.
 
 <div style="text-align: center;">
-<img src="a.jpg" alt="Squash Example 1" width="33%" style="margin-right: 2em;" />
-<img src="b.jpg" alt="Squash Example 2" width="33%" />
+<img src="Images/a.jpg" alt="Squash Example 1" width="33%" style="margin-right: 2em;" />
+<img src="Images/b.jpg" alt="Squash Example 2" width="33%" />
 </div>
 
 **Figure 3**: These two images are examples of frames pulled from a match. The photos are largely the same since the camera has been fixed, but the people and ball have moved. This is why it is essential that one court not be in both the train and test dataset. These frames were pulled from a Tufts Vs Bates match.
@@ -186,7 +186,7 @@ Below is a summary of the results for mAP@[0.5] and mAP@[0.5:0.95] across differ
 
 
 
-![Performance of Models Across Different Training Splits](results_plot.png)
+![Performance of Models Across Different Training Splits](Images/Screenshot%202024-12-21%20at%2012.19.14%E2%80%AFPM.png)
 
 **Figure X**: Performance of Models Across Different Training Splits.  
 Solid lines represent mAP@[0.5], while dashed lines represent mAP@[0.5:0.95] for Baseline, CycleGAN, Color Segmentation, and CycleGAN + Color Segmentation methods.

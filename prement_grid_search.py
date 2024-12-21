@@ -18,9 +18,9 @@ hyperparameter_space = {
     "step_size": [1],
     "gamma": [0.1],
     "weight_decay": [0.001],
-    "epochs": [20],
+    "epochs": [15],
     "batch_size":[4],
-    "real_size":[4000]
+    "real_size":[100]
 }
 
 
@@ -51,7 +51,7 @@ job_script_path = os.path.join(job_dir, "job_array.slurm")
 with open(job_script_path, "w") as job_script:
     job_script.write(f"""#!/usr/bin/env bash
 #SBATCH -n 1
-#SBATCH -t 0-01:30
+#SBATCH -t 0-01:50
 #SBATCH -p preempt
 #SBATCH --gres=gpu:1
 #SBATCH --mem=8000
@@ -85,7 +85,11 @@ echo $real_size
 python3 generate_ratio_csv.py \\
       --end_row $real_size\\
       --output_file $UNIQUE_ID/train.csv\\
-      --file2 /cluster/tufts/cs152l3dclass/oeiels01/super_train.csv
+      --subset_only
+      
+
+#   --file1=/cluster/home/oeiels01/Squash_L3D/Results/10376391_1/train.csv
+      
 
 # Run your training
 srun python3 train.py \\
